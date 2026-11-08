@@ -19,7 +19,7 @@ export class ImportCommand implements Command {
     for await (const offer of new TSVFileReader(filePath).read()) {
       const { name, email, avatar, type } = offer.author;
       const author = { name, email, avatar, type };
-      const output = chalk.cyan(JSON.stringify({ ...offer, author }, null, 2));
+      const output = chalk.cyan(JSON.stringify({ ...offer, author }));
       if (!process.stdout.write(`${output}\n`)) {
         await once(process.stdout, 'drain');
       }

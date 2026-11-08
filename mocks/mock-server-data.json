@@ -1,0 +1,54 @@
+{
+  "api": {
+    "offers": [
+      {
+        "title": "Музыкальный лофт в Дюссельдорфе",
+        "description": "Лофт с кирпичными стенами, коллекцией винила и удобной зоной отдыха. Рядом концертные площадки и небольшие кафе.",
+        "city": "Dusseldorf",
+        "previewImage": "https://example.com/dusseldorf/preview.jpg",
+        "images": ["https://example.com/dusseldorf/1.jpg", "https://example.com/dusseldorf/2.jpg", "https://example.com/dusseldorf/3.jpg", "https://example.com/dusseldorf/4.jpg", "https://example.com/dusseldorf/5.jpg", "https://example.com/dusseldorf/6.jpg"],
+        "author": { "name": "Меломан", "email": "music@example.com", "avatar": "music.jpg", "password": "demo1234", "type": "обычный" }
+      },
+      {
+        "title": "Уютная квартира в стиле хюгге",
+        "description": "Тёплая квартира с мягкими пледами, книжной полкой и просторной кухней. Подходит для отдыха после прогулок по каналам.",
+        "city": "Amsterdam",
+        "previewImage": "https://example.com/amsterdam/preview.jpg",
+        "images": ["https://example.com/amsterdam/1.jpg", "https://example.com/amsterdam/2.jpg", "https://example.com/amsterdam/3.jpg", "https://example.com/amsterdam/4.jpg", "https://example.com/amsterdam/5.jpg", "https://example.com/amsterdam/6.jpg"],
+        "author": { "name": "Хюгге", "email": "hygge@example.com", "password": "demo5678", "type": "pro" }
+      },
+      {
+        "title": "Светлая квартира рядом с парком",
+        "description": "Квартира с большими окнами и отдельной кухней в тихом квартале Парижа. Поблизости парк, пекарня и станция метро.",
+        "city": "Paris",
+        "previewImage": "https://example.com/paris/preview.jpg",
+        "images": ["https://example.com/paris/1.jpg", "https://example.com/paris/2.jpg", "https://example.com/paris/3.jpg", "https://example.com/paris/4.jpg", "https://example.com/paris/5.jpg", "https://example.com/paris/6.jpg"],
+        "author": { "name": "Саша", "email": "sasha@example.com", "avatar": "sasha.png", "password": "demo9012", "type": "обычный" }
+      },
+      {
+        "title": "Дом с террасой в тихом квартале",
+        "description": "Дом с просторной гостиной и небольшой террасой в Брюсселе. Рядом остановка транспорта и продуктовый магазин.",
+        "city": "Brussels",
+        "previewImage": "https://example.com/brussels/preview.jpg",
+        "images": ["https://example.com/brussels/1.jpg", "https://example.com/brussels/2.jpg", "https://example.com/brussels/3.jpg", "https://example.com/brussels/4.jpg", "https://example.com/brussels/5.jpg", "https://example.com/brussels/6.jpg"],
+        "author": { "name": "Алекс", "email": "alex@example.com", "password": "demo3456", "type": "pro" }
+      },
+      {
+        "title": "Квартира для прогулок по Кёльну",
+        "description": "Удобная квартира с рабочим столом и небольшой кухней. Из района легко добраться до набережной и исторического центра.",
+        "city": "Cologne",
+        "previewImage": "https://example.com/cologne/preview.jpg",
+        "images": ["https://example.com/cologne/1.jpg", "https://example.com/cologne/2.jpg", "https://example.com/cologne/3.jpg", "https://example.com/cologne/4.jpg", "https://example.com/cologne/5.jpg", "https://example.com/cologne/6.jpg"],
+        "author": { "name": "Женя", "email": "zhenya@example.com", "avatar": "zhenya.jpg", "password": "demo7890", "type": "обычный" }
+      },
+      {
+        "title": "Спокойный отдых рядом с портом",
+        "description": "Жильё в Гамбурге с уютной зоной отдыха и кухней для завтраков. Поблизости набережная, кафе и остановки транспорта.",
+        "city": "Hamburg",
+        "previewImage": "https://example.com/hamburg/preview.jpg",
+        "images": ["https://example.com/hamburg/1.jpg", "https://example.com/hamburg/2.jpg", "https://example.com/hamburg/3.jpg", "https://example.com/hamburg/4.jpg", "https://example.com/hamburg/5.jpg", "https://example.com/hamburg/6.jpg"],
+        "author": { "name": "Валера", "email": "valera@example.com", "password": "demo2468", "type": "pro" }
+      }
+    ]
+  }
+}
