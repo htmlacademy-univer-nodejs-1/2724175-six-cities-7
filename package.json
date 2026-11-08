@@ -10,7 +10,7 @@
   "main": "main.js",
   "scripts": {
     "start": "npm run build && node ./dist/main.js",
-    "start:pretty": "npm run build && node scripts/start-pretty.js",
+    "start:pretty": "npm run build && node ./dist/main.js | pino-pretty",
     "build": "npm run clean && npm run compile",
     "lint": "eslint src/ --ext .ts",
     "compile": "tsc -p tsconfig.json",

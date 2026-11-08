@@ -2,12 +2,19 @@ import { createWriteStream } from 'node:fs';
 import { extname } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import chalk from 'chalk';
-import { loadTemplates } from '../../shared/libs/offer-generator/load-templates.js';
-import { OfferGenerator } from '../../shared/libs/offer-generator/offer-generator.js';
-import { serializeOffer } from '../../shared/libs/offer-generator/serialize-offer.js';
+import { inject, injectable } from 'inversify';
+import { CLIComponent } from '../cli-component.js';
+import { GeneratorFactory, OfferSerializer, TemplateLoader } from '../cli-dependencies.js';
 import { Command } from './command.interface.js';
 
+@injectable()
 export class GenerateCommand implements Command {
+  constructor(
+    @inject(CLIComponent.LoadTemplates) private readonly loadTemplates: TemplateLoader,
+    @inject(CLIComponent.GeneratorFactory) private readonly createGenerator: GeneratorFactory,
+    @inject(CLIComponent.SerializeOffer) private readonly serialize: OfferSerializer
+  ) {}
+
   public getName(): string {
     return '--generate';
   }
@@ -19,11 +26,12 @@ export class GenerateCommand implements Command {
       || !Number.isSafeInteger(count) || count < 1 || extname(filePath).toLowerCase() !== '.tsv') {
       throw new Error('Использование: --generate <n> <path.tsv> <url>. Ожидается положительное целое количество.');
     }
-    const data = await loadTemplates(url);
-    const generator = new OfferGenerator(data.offers);
+    const data = await this.loadTemplates(url);
+    const generator = this.createGenerator(data.offers);
+    const serialize = this.serialize;
     function* rows(): Generator<string> {
       for (let index = 0; index < count; index++) {
-        yield serializeOffer(generator.generate());
+        yield serialize(generator.generate());
       }
     }
     await pipeline(rows(), createWriteStream(filePath, { encoding: 'utf8', flags: 'wx' }));
