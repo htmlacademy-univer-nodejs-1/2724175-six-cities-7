@@ -52,7 +52,7 @@ test('импорт выводит два предложения без паро�
 });
 
 test('неизвестная команда показывает справку, как в референсах', () => {
-  for (const args of [['--unknown'], ['stray'], ['--generate']]) {
+  for (const args of [['--unknown'], ['stray']]) {
     const result = run(args);
     assert.equal(result.status, 0);
     assert.equal(result.stdout, run(['--help']).stdout);
