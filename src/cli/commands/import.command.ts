@@ -1,10 +1,15 @@
 import { once } from 'node:events';
 import { extname } from 'node:path';
 import chalk from 'chalk';
-import { TSVFileReader } from '../../shared/libs/file-reader/tsv-file-reader.js';
+import { inject, injectable } from 'inversify';
+import { CLIComponent } from '../cli-component.js';
+import { ReaderFactory } from '../cli-dependencies.js';
 import { Command } from './command.interface.js';
 
+@injectable()
 export class ImportCommand implements Command {
+  constructor(@inject(CLIComponent.ReaderFactory) private readonly createReader: ReaderFactory) {}
+
   public getName(): string {
     return '--import';
   }
@@ -16,7 +21,7 @@ export class ImportCommand implements Command {
     }
 
     let count = 0;
-    for await (const offer of new TSVFileReader(filePath).read()) {
+    for await (const offer of this.createReader(filePath).read()) {
       const { name, email, avatar, type } = offer.author;
       const author = { name, email, avatar, type };
       const output = chalk.cyan(JSON.stringify({ ...offer, author }));

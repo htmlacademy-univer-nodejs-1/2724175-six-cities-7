@@ -1,7 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import chalk from 'chalk';
+import { injectable } from 'inversify';
 import { Command } from './command.interface.js';
 
+@injectable()
 export class VersionCommand implements Command {
   public getName(): string {
     return '--version';
