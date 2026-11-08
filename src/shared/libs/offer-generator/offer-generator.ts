@@ -1,6 +1,7 @@
 import { Amenity, CITY_LOCATIONS, HousingType, Offer } from '../../types/index.js';
 import { OfferTemplate } from '../../types/mock-server-data.type.js';
 import { randomItem, randomItems, randomNumber } from '../../helpers/random.js';
+import { OFFER_LIMITS } from '../../constants/offer-limits.js';
 
 export class OfferGenerator {
   constructor(private readonly templates: OfferTemplate[]) {}
@@ -14,11 +15,12 @@ export class OfferGenerator {
       postDate: new Date(Date.now() - randomNumber(0, 30 * 24 * 60 * 60) * 1000),
       isPremium: randomNumber(0, 1) === 1,
       isFavorite: false,
-      rating: randomNumber(10, 50) / 10,
+      rating: randomNumber(OFFER_LIMITS.rating.min * OFFER_LIMITS.rating.precision,
+        OFFER_LIMITS.rating.max * OFFER_LIMITS.rating.precision) / OFFER_LIMITS.rating.precision,
       housingType: randomItem(Object.values(HousingType)),
-      roomsCount: randomNumber(1, 8),
-      guestsCount: randomNumber(1, 10),
-      price: randomNumber(100, 100000),
+      roomsCount: randomNumber(OFFER_LIMITS.rooms.min, OFFER_LIMITS.rooms.max),
+      guestsCount: randomNumber(OFFER_LIMITS.guests.min, OFFER_LIMITS.guests.max),
+      price: randomNumber(OFFER_LIMITS.price.min, OFFER_LIMITS.price.max),
       amenities: randomItems(Object.values(Amenity)),
       commentCount: 0,
       location: {

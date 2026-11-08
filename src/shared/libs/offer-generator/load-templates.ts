@@ -1,15 +1,21 @@
 import axios from 'axios';
 import { MockServerData, OfferTemplate } from '../../types/mock-server-data.type.js';
 import { CITY_LOCATIONS, CityName, UserType } from '../../types/index.js';
-import { parseOffer } from '../file-reader/parse-offer.js';
-import { serializeOffer } from './serialize-offer.js';
-import { OfferGenerator } from './offer-generator.js';
+import { OFFER_LIMITS, USER_LIMITS } from '../../constants/offer-limits.js';
+import { avatar, choice, email, photos, text } from '../../helpers/validation.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function parseTemplate(value: unknown): OfferTemplate {
+function templateText(value: string, field: string, min = 1, max = Infinity): string {
+  if (/[\t\r\n]/.test(value)) {
+    throw new Error('Поля TSV не должны содержать табуляции или переводы строк.');
+  }
+  return text(value.trim(), field, min, max);
+}
+
+export function parseTemplate(value: unknown): OfferTemplate {
   if (!isRecord(value) || !isRecord(value.author)
     || typeof value.title !== 'string' || typeof value.description !== 'string'
     || typeof value.previewImage !== 'string' || typeof value.city !== 'string'
@@ -21,22 +27,25 @@ function parseTemplate(value: unknown): OfferTemplate {
     || !Object.values(UserType).includes(value.author.type as UserType)) {
     throw new Error('Некорректная структура заготовки предложения.');
   }
-  const template: OfferTemplate = {
-    title: value.title,
-    description: value.description,
-    city: value.city as CityName,
-    previewImage: value.previewImage,
-    images: value.images,
+  const images = value.images.map((image: string) => templateText(image, 'Фотография'));
+  if (images.some((image: string) => image.includes(';'))) {
+    throw new Error('Ссылки на фотографии не должны содержать разделитель «;».');
+  }
+  const authorAvatar = avatar(templateText(value.author.avatar ?? '', 'Аватар', 0));
+  return {
+    title: templateText(value.title, 'Наименование', OFFER_LIMITS.title.min, OFFER_LIMITS.title.max),
+    description: templateText(value.description, 'Описание', OFFER_LIMITS.description.min, OFFER_LIMITS.description.max),
+    city: choice(value.city, Object.keys(CITY_LOCATIONS) as CityName[], 'Город'),
+    previewImage: templateText(value.previewImage, 'Превью'),
+    images: photos(images),
     author: {
-      name: value.author.name,
-      email: value.author.email,
-      password: value.author.password,
-      avatar: value.author.avatar,
-      type: value.author.type as UserType
+      name: templateText(value.author.name, 'Имя автора', USER_LIMITS.name.min, USER_LIMITS.name.max),
+      email: email(templateText(value.author.email, 'Email автора')),
+      password: templateText(value.author.password, 'Пароль автора', USER_LIMITS.password.min, USER_LIMITS.password.max),
+      ...(authorAvatar ? { avatar: authorAvatar } : {}),
+      type: choice(String(value.author.type), Object.values(UserType), 'Тип пользователя')
     }
   };
-  parseOffer(serializeOffer(new OfferGenerator([template]).generate()).trimEnd());
-  return template;
 }
 
 export async function loadTemplates(url: string): Promise<MockServerData> {

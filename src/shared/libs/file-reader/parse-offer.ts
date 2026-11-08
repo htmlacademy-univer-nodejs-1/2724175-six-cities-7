@@ -1,24 +1,11 @@
 import { Amenity, CITY_LOCATIONS, CityName, HousingType, Offer, UserType } from '../../types/index.js';
-
-function text(value: string, field: string, min: number, max: number): string {
-  if (value.length < min || value.length > max) {
-    throw new Error(`${field}: ожидается от ${min} до ${max} символов.`);
-  }
-  return value;
-}
+import { OFFER_LIMITS, USER_LIMITS } from '../../constants/offer-limits.js';
+import { avatar, choice, email, isoDate, photos, text } from '../../helpers/validation.js';
 
 function numeric(value: string, field: string, min: number, max: number, integer = true): number {
   const result = Number(value);
   if (!value || !Number.isFinite(result) || result < min || result > max || (integer && !Number.isInteger(result))) {
     throw new Error(`${field}: ожидается ${integer ? 'целое ' : ''}число от ${min} до ${max}.`);
-  }
-  return result;
-}
-
-function choice<T extends string>(value: string, values: readonly T[], field: string): T {
-  const result = values.find((item) => item === value);
-  if (result === undefined) {
-    throw new Error(`${field}: недопустимое значение «${value}».`);
   }
   return result;
 }
@@ -38,52 +25,37 @@ export function parseOffer(line: string): Offer {
     authorName, authorEmail, authorAvatar, authorPassword, authorType, latitude, longitude] = fields;
 
   const city = choice(cityName, Object.keys(CITY_LOCATIONS) as CityName[], 'Город');
-  const date = new Date(postDate);
-  if (!/^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(postDate) || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== postDate.slice(0, 10)) {
-    throw new Error('Дата публикации: ожидается корректная дата ISO 8601.');
-  }
-
-  const photos = images.split(';').map((image) => image.trim());
-  if (photos.length !== 6 || photos.some((image) => !image)) {
-    throw new Error('Фотографии: требуется ровно 6 непустых ссылок.');
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(authorEmail)) {
-    throw new Error('Email автора: некорректный адрес.');
-  }
-  if (authorAvatar && !/\.(jpg|png)$/i.test(authorAvatar)) {
-    throw new Error('Аватар: ожидается файл .jpg или .png.');
-  }
-  const parsedRating = numeric(rating, 'Рейтинг', 1, 5, false);
+  const parsedRating = numeric(rating, 'Рейтинг', OFFER_LIMITS.rating.min, OFFER_LIMITS.rating.max, false);
   if (!/^\d(?:\.\d)?$/.test(rating)) {
     throw new Error('Рейтинг: допускается не более одного знака после точки.');
   }
 
   return {
-    title: text(title, 'Наименование', 10, 100),
-    description: text(description, 'Описание', 20, 1024),
-    postDate: date,
+    title: text(title, 'Наименование', OFFER_LIMITS.title.min, OFFER_LIMITS.title.max),
+    description: text(description, 'Описание', OFFER_LIMITS.description.min, OFFER_LIMITS.description.max),
+    postDate: isoDate(postDate),
     city: { name: city, location: { ...CITY_LOCATIONS[city] } },
     previewImage: text(previewImage, 'Превью', 1, Infinity),
-    images: photos,
+    images: photos(images.split(';').map((image) => image.trim())),
     isPremium: boolean(isPremium, 'Премиум'),
     isFavorite: boolean(isFavorite, 'Избранное'),
     rating: parsedRating,
     housingType: choice(housingType, Object.values(HousingType), 'Тип жилья'),
-    roomsCount: numeric(roomsCount, 'Количество комнат', 1, 8),
-    guestsCount: numeric(guestsCount, 'Количество гостей', 1, 10),
-    price: numeric(price, 'Стоимость', 100, 100000),
+    roomsCount: numeric(roomsCount, 'Количество комнат', OFFER_LIMITS.rooms.min, OFFER_LIMITS.rooms.max),
+    guestsCount: numeric(guestsCount, 'Количество гостей', OFFER_LIMITS.guests.min, OFFER_LIMITS.guests.max),
+    price: numeric(price, 'Стоимость', OFFER_LIMITS.price.min, OFFER_LIMITS.price.max),
     amenities: amenities.split(';').map((item) => choice(item.trim(), Object.values(Amenity), 'Удобства')),
     author: {
-      name: text(authorName, 'Имя автора', 1, 15),
-      email: authorEmail,
-      ...(authorAvatar ? { avatar: authorAvatar } : {}),
-      password: text(authorPassword, 'Пароль автора', 6, 12),
+      name: text(authorName, 'Имя автора', USER_LIMITS.name.min, USER_LIMITS.name.max),
+      email: email(authorEmail),
+      ...(authorAvatar ? { avatar: avatar(authorAvatar) } : {}),
+      password: text(authorPassword, 'Пароль автора', USER_LIMITS.password.min, USER_LIMITS.password.max),
       type: choice(authorType, Object.values(UserType), 'Тип пользователя')
     },
     commentCount: 0,
     location: {
-      latitude: numeric(latitude, 'Широта', -90, 90, false),
-      longitude: numeric(longitude, 'Долгота', -180, 180, false)
+      latitude: numeric(latitude, 'Широта', OFFER_LIMITS.latitude.min, OFFER_LIMITS.latitude.max, false),
+      longitude: numeric(longitude, 'Долгота', OFFER_LIMITS.longitude.min, OFFER_LIMITS.longitude.max, false)
     }
   };
 }
