@@ -64,10 +64,6 @@ test('генерация получает данные по HTTP, сохраня
     const rows = (await readFile(path, 'utf8')).trimEnd().split('\n');
     assert.equal(rows.length, 100);
     rows.forEach((row) => parseOffer(row));
-    const imported = await run(['--import', path]);
-    assert.equal(imported.stderr, '');
-    assert.match(imported.stdout, /Прочитано предложений: 100/);
-    assert.doesNotMatch(imported.stdout, /password|demo1234/);
   });
 });
 

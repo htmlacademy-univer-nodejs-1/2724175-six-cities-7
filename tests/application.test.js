@@ -10,7 +10,8 @@ import { createContainer } from '../dist/shared/di/container.js';
 import { Component } from '../dist/shared/di/component.js';
 
 const main = fileURLToPath(new URL('../dist/main.js', import.meta.url));
-const valid = { PORT: '3123', DB_HOST: '127.0.0.1', SALT: 'test-only-salt' };
+const valid = { PORT: '3123', DB_HOST: '127.0.0.1', DB_USER: 'admin', DB_PASSWORD: 'test', SALT: 'test-only-salt' };
+const required = ['PORT', 'DB_HOST', 'DB_USER', 'DB_PASSWORD', 'SALT'];
 
 async function withDirectory(callback) {
   const directory = await mkdtemp(join(tmpdir(), 'six-cities-config-'));
@@ -23,7 +24,7 @@ async function withDirectory(callback) {
 
 function run(cwd, variables = {}) {
   const env = { ...process.env };
-  for (const key of ['PORT', 'DB_HOST', 'SALT']) {
+  for (const key of ['PORT', 'DB_HOST', 'DB_USER', 'DB_PASSWORD', 'SALT']) {
     delete env[key];
   }
   return spawnSync(process.execPath, [main], {
@@ -51,7 +52,7 @@ test('приложение получает обязательные настр�
 
 test('dotenv загружает .env, переменные процесса имеют приоритет', async () => {
   await withDirectory(async (directory) => {
-    await writeFile(join(directory, '.env'), 'PORT=4000\nDB_HOST=::1\nSALT=env-test-salt\n');
+    await writeFile(join(directory, '.env'), 'PORT=4000\nDB_HOST=::1\nDB_USER=admin\nDB_PASSWORD=test\nSALT=env-test-salt\n');
     const fromFile = run(directory);
     assert.equal(fromFile.status, 0, fromFile.stderr);
     assert.equal(logs(fromFile)[0].port, 4000);
@@ -64,7 +65,7 @@ test('dotenv загружает .env, переменные процесса им
 test('каждая настройка обязательна, неверные значения останавливают запуск', async () => {
   await withDirectory(async (directory) => {
     const cases = [];
-    for (const key of Object.keys(valid)) {
+    for (const key of required) {
       const variables = { ...valid };
       delete variables[key];
       cases.push(variables);
