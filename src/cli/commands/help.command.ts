@@ -20,7 +20,7 @@ ${chalk.bold.cyan('Шесть городов — подготовка данны
 ${chalk.bold('Команды:')}
   ${chalk.green('--help')}                       печатает эту справку
   ${chalk.green('--version')}                    выводит версию приложения
-  ${chalk.green('--import <path>')}              читает TSV и выводит предложения в консоль
+  ${chalk.green('--import <path> <mongodb-uri>')} сохраняет предложения из TSV в MongoDB
   ${chalk.yellow('--generate <n> <path> <url>')}  генерирует тестовые данные
 `);
   }

@@ -102,10 +102,15 @@ npm run mock-server
 ## Запуск проекта
 
 Настройки приложения задаются в `.env` в корне проекта по образцу `.env.example`.
-Все три переменные обязательны; переменные окружения процесса имеют приоритет над `.env`.
+`PORT`, `DB_HOST`, `DB_USER`, `DB_PASSWORD` и `SALT` обязательны; переменные окружения
+процесса имеют приоритет над `.env`.
 
 - `PORT=3000` — целый номер порта от 1 до 65535.
 - `DB_HOST=127.0.0.1` — IP-адрес сервера базы данных (IPv4 или IPv6).
+- `DB_PORT=27017` — порт сервера базы данных.
+- `DB_USER=admin` — имя пользователя базы данных.
+- `DB_PASSWORD=test` — пароль базы данных.
+- `DB_NAME=six-cities` — имя базы данных.
 - `SALT=example-only-change-before-use` — соль для хеширования, непустая строка.
 
 ```bash
@@ -119,22 +124,45 @@ CLI запускается следующими командами:
 ```bash
 npm run cli
 npm run cli -- --version
-npm run cli -- --import mocks/offers.tsv
+npm run cli -- --import mocks/offers.tsv 'mongodb://admin:test@127.0.0.1:27017/six-cities?authSource=admin'
 ```
 
 При запущенном JSON-server:
 
 ```bash
 npm run cli -- --generate 100 generated/offers.tsv http://127.0.0.1:3000/api
-npm run cli -- --import generated/offers.tsv
+npm run cli -- --import generated/offers.tsv 'mongodb://admin:test@127.0.0.1:27017/six-cities?authSource=admin'
 ```
 
 Команда `--generate` получает исходные данные по адресу `<url>` и записывает
 предложения в TSV-файл по указанному пути. Существующий файл не перезаписывается.
 Содержимое каталога `generated/` исключено из Git.
 
-Команда `--import` читает TSV-файл и выводит предложения в консоль.
-Для CLI переменные окружения не требуются.
+Команда `--import` читает TSV-файл и сохраняет предложения в MongoDB по указанному URI.
+Автор создаётся при первом появлении email и переиспользуется при повторном импорте.
+
+## База данных MongoDB
+
+Для запуска MongoDB и веб-интерфейса mongo-express используется Docker Compose.
+Значения `MONGO_USER` и `MONGO_PASSWORD` задаются в `.env`; без них Compose
+не запускает конфигурацию.
+
+- `MONGO_USER=admin` — пользователь MongoDB и веб-интерфейса.
+- `MONGO_PASSWORD=test` — пароль MongoDB и веб-интерфейса; пример для локальной разработки.
+
+Учётные данные MongoDB применяются при первом создании тома.
+
+```bash
+docker compose up -d
+```
+
+| Сервис | Адрес | Назначение |
+| --- | --- | --- |
+| `db` | `mongodb://127.0.0.1:27017` | MongoDB с постоянным хранилищем `six-cities_data`. |
+| `db_ui` | `http://127.0.0.1:8081` | mongo-express для просмотра данных. |
+
+Оба порта доступны только с локальной машины. Остановка и удаление контейнеров:
+`docker compose down`; вместе с данными — `docker compose down -v`.
 
 ## Структура проекта
 

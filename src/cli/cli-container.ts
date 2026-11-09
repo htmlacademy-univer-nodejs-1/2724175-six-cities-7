@@ -1,5 +1,9 @@
 import 'reflect-metadata';
 import { Container } from 'inversify';
+import { Component } from '../shared/di/component.js';
+import { registerDatabase } from '../shared/di/database-container.js';
+import { Logger } from '../shared/libs/logger/logger.interface.js';
+import { PinoLogger } from '../shared/libs/logger/pino-logger.js';
 import { TSVFileReader } from '../shared/libs/file-reader/tsv-file-reader.js';
 import { OfferGenerator } from '../shared/libs/offer-generator/offer-generator.js';
 import { loadTemplates } from '../shared/libs/offer-generator/load-templates.js';
@@ -15,6 +19,8 @@ import { VersionCommand } from './commands/version.command.js';
 
 export function createCLIContainer(): Container {
   const container = new Container();
+  container.bind<Logger>(Component.Logger).to(PinoLogger).inSingletonScope();
+  registerDatabase(container);
   container.bind(CLIApplication).toSelf().inSingletonScope();
   container.bind<Command>(CLIComponent.Command).to(HelpCommand);
   container.bind<Command>(CLIComponent.Command).to(VersionCommand);

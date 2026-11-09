@@ -43,12 +43,9 @@ test('версия читается из package.json даже при запус
   assert.equal(result.stdout.trim(), config.version);
 });
 
-test('импорт выводит два предложения без паролей', () => {
+test('импорт требует URI подключения', () => {
   const result = run(['--import', mockPath]);
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /Прочитано предложений: 2/);
-  assert.match(result.stdout, /Музыкальный лофт в Дюссельдорфе/);
-  assert.doesNotMatch(result.stdout, /password|demo1234|demo5678/);
+  assert.match(result.stderr, /mongodb-uri/);
 });
 
 test('неизвестная команда показывает справку, как в референсах', () => {
@@ -60,8 +57,9 @@ test('неизвестная команда показывает справку,
 });
 
 test('ошибки аргументов выводятся без изменения кода завершения', () => {
-  for (const args of [['--import'], ['--import', 'file.csv'], ['--import', mockPath, 'extra'],
-    ['--version', '--help'], ['--help', 'extra'], ['--import', `${mockPath}.missing.tsv`]]) {
+  for (const args of [['--import'], ['--import', 'file.csv'], ['--import', mockPath, 'mongodb://uri'],
+    ['--version', '--help'], ['--help', 'extra'], ['--import', `${mockPath}.missing.tsv`, 'mongodb://uri'],
+    ['--import', mockPath, 'postgres://localhost']]) {
     const result = run(args);
     assert.equal(result.status, 0, JSON.stringify(args));
     assert.match(result.stderr, /Ошибка:/);
@@ -85,26 +83,32 @@ test('reader преобразует значения и не подменяет 
 
 test('импорт поддерживает BOM, CRLF, пустые строки и путь с пробелами', async () => {
   await temporaryFile(`﻿${fixture.replaceAll('\n', '\r\n')}\r\n`, async (path) => {
-    const result = run(['--import', path]);
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /Прочитано предложений: 2/);
+    const offers = [];
+    for await (const offer of new TSVFileReader(path).read()) {
+      offers.push(offer);
+    }
+    assert.equal(offers.length, 2);
   });
 });
 
 test('пустой TSV корректно обрабатывается', async () => {
   await temporaryFile('', async (path) => {
-    const result = run(['--import', path]);
-    assert.equal(result.status, 0);
-    assert.match(result.stdout, /Прочитано предложений: 0/);
+    const offers = [];
+    for await (const offer of new TSVFileReader(path).read()) {
+      offers.push(offer);
+    }
+    assert.equal(offers.length, 0);
   });
 });
 
 test('ошибка TSV содержит номер строки', async () => {
   await temporaryFile(`${firstLine}\ninvalid\n`, async (path) => {
-    const result = run(['--import', path]);
-    assert.equal(result.status, 0);
-    assert.match(result.stderr, /Строка 2:.*21 колонка/);
-    assert.doesNotMatch(result.stdout, /Прочитано предложений:/);
+    const reader = new TSVFileReader(path);
+    await assert.rejects(async () => {
+      for await (const offer of reader.read()) {
+        void offer;
+      }
+    }, /Строка 2:.*21 колонка/);
   });
 });
 

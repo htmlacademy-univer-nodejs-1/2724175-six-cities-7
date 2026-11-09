@@ -1,0 +1,37 @@
+services:
+  db:
+    image: mongo:9.0.4
+    restart: always
+    container_name: six-cities_mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:?MONGO_USER is required}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?MONGO_PASSWORD is required}
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - six-cities_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  db_ui:
+    image: mongo-express:1.0.2
+    restart: always
+    container_name: six-cities_mongo_express
+    ports:
+      - "127.0.0.1:8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_USER:?MONGO_USER is required}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_PASSWORD:?MONGO_PASSWORD is required}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_USER:?MONGO_USER is required}:${MONGO_PASSWORD:?MONGO_PASSWORD is required}@db:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_USER:?MONGO_USER is required}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_PASSWORD:?MONGO_PASSWORD is required}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  six-cities_data:

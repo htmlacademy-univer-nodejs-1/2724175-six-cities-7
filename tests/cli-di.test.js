@@ -1,9 +1,13 @@
 import 'reflect-metadata';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
+
+process.env.SALT = 'unit-test-salt';
 import test from 'node:test';
 import { createCLIContainer } from '../dist/cli/cli-container.js';
 import { CLIApplication } from '../dist/cli/cli-application.js';
 import { CLIComponent } from '../dist/cli/cli-component.js';
+import { Component } from '../dist/shared/di/component.js';
 
 test('контейнер CLI регистрирует четыре команды и внедряет фабрики', () => {
   const container = createCLIContainer();
@@ -12,6 +16,36 @@ test('контейнер CLI регистрирует четыре команд�
   assert.equal(container.get(CLIApplication), container.get(CLIApplication));
   assert.equal(typeof container.get(CLIComponent.ReaderFactory), 'function');
   assert.equal(typeof container.get(CLIComponent.GeneratorFactory), 'function');
+  for (const key of ['DatabaseClient', 'UserService', 'OfferService', 'UserModel', 'OfferModel']) {
+    assert.ok(container.get(Component[key]), key);
+  }
+});
+
+test('команда импорта получает зависимости базы из контейнера', async () => {
+  const container = createCLIContainer();
+  const requested = [];
+  container.rebind(Component.DatabaseClient).toConstantValue({
+    connect: async (uri) => { requested.push(`connect:${uri}`); },
+    disconnect: async () => { requested.push('disconnect'); }
+  });
+  container.rebind(Component.UserService).toConstantValue({
+    create: async () => ({ _id: '507f1f77bcf86cd799439011' }),
+    findById: async () => null,
+    findByEmail: async (email) => (email === 'music@example.com' ? { _id: '507f1f77bcf86cd799439011' } : null)
+  });
+  container.rebind(Component.OfferService).toConstantValue({
+    create: async (offer) => { requested.push(offer.title); return offer; },
+    findById: async () => null
+  });
+  await container.get(CLIApplication).processCommand([
+    '--import', fileURLToPath(new URL('../mocks/offers.tsv', import.meta.url)), 'mongodb://127.0.0.1:27017/test'
+  ]);
+  assert.deepEqual(requested, [
+    'connect:mongodb://127.0.0.1:27017/test',
+    'Музыкальный лофт в Дюссельдорфе',
+    'Уютная квартира в стиле хюгге',
+    'disconnect'
+  ]);
 });
 
 test('CLI получает список команд через DI и ожидает выполнение команды', async () => {
@@ -28,11 +62,13 @@ test('CLI получает список команд через DI и ожида
 
 test('команда импорта получает заменяемую фабрику reader из контейнера', async () => {
   const container = createCLIContainer();
+  container.rebind(Component.DatabaseClient).toConstantValue({ connect: async () => {}, disconnect: async () => {} });
   container.rebind(CLIComponent.ReaderFactory).toConstantValue((path) => {
     assert.equal(path, 'input.tsv');
     return { async *read() { throw new Error('reader injected'); } };
   });
-  await assert.rejects(container.get(CLIApplication).processCommand(['--import', 'input.tsv']), /reader injected/);
+  await assert.rejects(container.get(CLIApplication).processCommand(['--import', 'input.tsv', 'mongodb://localhost:27017']),
+    /reader injected/);
 });
 
 test('команда генерации получает заменяемый загрузчик из контейнера', async () => {

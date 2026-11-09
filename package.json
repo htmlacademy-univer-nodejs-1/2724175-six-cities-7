@@ -40,12 +40,14 @@
     "npm": ">=8"
   },
   "dependencies": {
+    "@typegoose/typegoose": "12.21.1",
     "axios": "1.13.2",
     "chalk": "5.6.2",
     "convict": "6.2.5",
     "convict-format-with-validator": "6.2.0",
     "dotenv": "16.4.7",
     "inversify": "6.0.2",
+    "mongoose": "8.21.1",
     "pino": "9.14.0",
     "reflect-metadata": "0.2.2",
     "tslib": "2.8.1"
