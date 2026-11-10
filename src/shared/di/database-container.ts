@@ -10,6 +10,9 @@ import { DefaultUserService } from '../modules/user/default-user.service.js';
 import { DefaultOfferService } from '../modules/offer/default-offer.service.js';
 import { UserService } from '../modules/user/user-service.interface.js';
 import { OfferService } from '../modules/offer/offer-service.interface.js';
+import { CommentEntity } from '../modules/comment/comment.model.js';
+import { CommentService } from '../modules/comment/comment-service.interface.js';
+import { DefaultCommentService } from '../modules/comment/default-comment.service.js';
 
 export function registerDatabase(container: Container): void {
   container.bind(Component.DatabaseConnection).toDynamicValue(() => createConnection()).inSingletonScope();
@@ -18,6 +21,9 @@ export function registerDatabase(container: Container): void {
     getModelForClass(UserEntity, { existingConnection: scope.get(Component.DatabaseConnection), options: { disableCaching: true } })).inSingletonScope();
   container.bind(Component.OfferModel).toDynamicValue(({ container: scope }) =>
     getModelForClass(OfferEntity, { existingConnection: scope.get(Component.DatabaseConnection), options: { disableCaching: true } })).inSingletonScope();
+  container.bind(Component.CommentModel).toDynamicValue(({ container: scope }) =>
+    getModelForClass(CommentEntity, { existingConnection: scope.get(Component.DatabaseConnection), options: { disableCaching: true } })).inSingletonScope();
+  container.bind<CommentService>(Component.CommentService).to(DefaultCommentService).inSingletonScope();
   container.bind<UserService>(Component.UserService).to(DefaultUserService).inSingletonScope();
   container.bind<OfferService>(Component.OfferService).to(DefaultOfferService).inSingletonScope();
 }
