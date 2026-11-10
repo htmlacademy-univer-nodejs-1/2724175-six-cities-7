@@ -852,7 +852,7 @@ components:
         error:
           type: string
           description: Описание ошибки
-          example: Validation error
+          example: Ошибка валидации
         details:
           type: array
           description: Список ошибок по полям при неудачной валидации
@@ -868,4 +868,4 @@ components:
                 type: array
                 items:
                   type: string
-                example: ['title must be longer than or equal to 10 characters']
+                example: ['Название должно содержать не менее 10 символов']
