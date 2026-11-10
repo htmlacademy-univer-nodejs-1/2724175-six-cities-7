@@ -120,6 +120,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Offer'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -161,6 +163,8 @@ paths:
       responses:
         '204':
           description: Предложение удалено
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -187,6 +191,8 @@ paths:
                 maxItems: 50
                 items:
                   $ref: '#/components/schemas/Comment'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -252,6 +258,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Offer'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -270,6 +278,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Offer'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -298,6 +308,12 @@ paths:
                 $ref: '#/components/schemas/User'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '403':
+          description: Регистрация недоступна авторизованному клиенту
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '409':
           description: Пользователь с таким email уже существует
           content:
