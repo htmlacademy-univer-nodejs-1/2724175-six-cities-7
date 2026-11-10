@@ -30,7 +30,7 @@ export class OfferEntity extends defaultClasses.TimeStamps {
   @prop({ required: true })
   public description!: string;
 
-  @prop({ required: true })
+  @prop({ required: true, default: Date.now })
   public postDate!: Date;
 
   @prop({ required: true, type: () => CityEntity })
@@ -45,11 +45,11 @@ export class OfferEntity extends defaultClasses.TimeStamps {
   @prop({ required: true })
   public isPremium!: boolean;
 
-  @prop({ required: true })
-  public isFavorite!: boolean;
-
-  @prop({ required: true })
+  @prop({ required: true, default: 0 })
   public rating!: number;
+
+  @prop({ required: true, default: 0 })
+  public ratingSum!: number;
 
   @prop({ required: true, type: () => String, enum: HousingType })
   public housingType!: HousingType;
