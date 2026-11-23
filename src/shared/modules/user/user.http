@@ -1,0 +1,28 @@
+@baseUrl = http://localhost:3000
+@userId = 6329c3d6a04ab1061c6425ea
+
+### Регистрация — 201; повторный запрос с тем же email — 409
+POST {{baseUrl}}/users/register
+Content-Type: application/json
+
+{
+  "name": "Путешественник",
+  "email": "traveler@example.com",
+  "password": "demo1234",
+  "type": "обычный"
+}
+
+### Вход — 501 на текущем этапе
+POST {{baseUrl}}/users/login
+Content-Type: application/json
+
+{
+  "email": "traveler@example.com",
+  "password": "demo1234"
+}
+
+### Проверка авторизации — 501 на текущем этапе
+GET {{baseUrl}}/users/login/me
+
+### Загрузка аватара — 501; тело пока не обрабатывается
+POST {{baseUrl}}/users/{{userId}}/avatar
