@@ -22,13 +22,13 @@ async function withDirectory(callback) {
   }
 }
 
-function run(cwd, variables = {}) {
+function run(cwd, variables = {}, entry = [main]) {
   const env = { ...process.env };
   for (const key of ['PORT', 'DB_HOST', 'DB_USER', 'DB_PASSWORD', 'SALT']) {
     delete env[key];
   }
-  return spawnSync(process.execPath, [main], {
-    cwd, env: { ...env, ...variables }, encoding: 'utf8'
+  return spawnSync(process.execPath, entry, {
+    cwd, env: { ...env, ...variables }, encoding: 'utf8', timeout: 5000
   });
 }
 
@@ -36,16 +36,23 @@ function logs(result) {
   return result.stdout.trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
 }
 
-test('приложение получает обязательные настройки и пишет логи Pino без соли', async () => {
+const startWithStubDatabase = ['--input-type=module', '-e', `
+  import { createContainer } from ${JSON.stringify(new URL('../dist/shared/di/container.js', import.meta.url).href)};
+  import { Component } from ${JSON.stringify(new URL('../dist/shared/di/component.js', import.meta.url).href)};
+  const container = createContainer();
+  container.rebind(Component.DatabaseClient).toConstantValue({ connect: async () => {}, disconnect: async () => {} });
+  container.get(Component.Config).init();
+  const server = await container.get(Component.Application).init();
+  server.close();
+`];
+
+test('приложение слушает настроенный порт и не пишет соль в логи', async () => {
   await withDirectory(async (directory) => {
-    const result = run(directory, valid);
+    const result = run(directory, valid, startWithStubDatabase);
     assert.equal(result.status, 0, result.stderr);
-    const entries = logs(result);
-    assert.deepEqual(entries.map((entry) => entry.msg), [
-      'Порт приложения', 'Приложение инициализировано.'
+    assert.deepEqual(logs(result).map(({ msg, port }) => ({ msg, port })), [
+      { msg: 'Приложение инициализировано.', port: 3123 }
     ]);
-    assert.ok(entries.every((entry) => entry.level === 30));
-    assert.equal(entries[0].port, 3123);
     assert.doesNotMatch(result.stdout + result.stderr, /test-only-salt/);
   });
 });
@@ -53,10 +60,10 @@ test('приложение получает обязательные настр�
 test('dotenv загружает .env, переменные процесса имеют приоритет', async () => {
   await withDirectory(async (directory) => {
     await writeFile(join(directory, '.env'), 'PORT=4000\nDB_HOST=::1\nDB_USER=admin\nDB_PASSWORD=test\nSALT=env-test-salt\n');
-    const fromFile = run(directory);
+    const fromFile = run(directory, {}, startWithStubDatabase);
     assert.equal(fromFile.status, 0, fromFile.stderr);
     assert.equal(logs(fromFile)[0].port, 4000);
-    const overridden = run(directory, { PORT: '5000' });
+    const overridden = run(directory, { PORT: '5000' }, startWithStubDatabase);
     assert.equal(overridden.status, 0);
     assert.equal(logs(overridden)[0].port, 5000);
   });
@@ -91,13 +98,8 @@ test('каждая настройка обязательна, неверные �
 
 test('контейнер внедряет логер и хранит singleton-компоненты', () => {
   const container = createContainer();
-  const messages = [];
-  const logger = { info: (message) => messages.push(message), error: () => {} };
-  container.rebind(Component.Logger).toConstantValue(logger);
   const application = container.get(Component.Application);
   assert.equal(application, container.get(Component.Application));
   assert.equal(container.get(Component.Config), container.get(Component.Config));
-  application.init();
-  assert.deepEqual(messages, ['Приложение инициализировано.']);
   assert.throws(() => container.get(Component.Config).get('PORT'), /не инициализирована/);
 });

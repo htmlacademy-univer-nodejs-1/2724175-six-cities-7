@@ -9,5 +9,6 @@ export const Component = {
   UserService: Symbol.for('UserService'),
   OfferService: Symbol.for('OfferService'),
   CommentModel: Symbol.for('CommentModel'),
-  CommentService: Symbol.for('CommentService')
+  CommentService: Symbol.for('CommentService'),
+  CurrentUser: Symbol.for('CurrentUser')
 } as const;

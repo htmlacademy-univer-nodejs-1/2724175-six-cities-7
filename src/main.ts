@@ -12,7 +12,7 @@ try {
   const config = container.get<Config>(Component.Config);
   config.init();
   logger.info('Порт приложения', { port: config.get('PORT') });
-  container.get<Application>(Component.Application).init();
+  await container.get<Application>(Component.Application).init();
 } catch (error: unknown) {
   logger.error('Не удалось инициализировать приложение.',
     error instanceof Error ? error : new Error('Неизвестная ошибка.'));
