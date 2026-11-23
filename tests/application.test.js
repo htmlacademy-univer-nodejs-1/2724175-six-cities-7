@@ -36,15 +36,7 @@ function logs(result) {
   return result.stdout.trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
 }
 
-const startWithStubDatabase = ['--input-type=module', '-e', `
-  import { createContainer } from ${JSON.stringify(new URL('../dist/shared/di/container.js', import.meta.url).href)};
-  import { Component } from ${JSON.stringify(new URL('../dist/shared/di/component.js', import.meta.url).href)};
-  const container = createContainer();
-  container.rebind(Component.DatabaseClient).toConstantValue({ connect: async () => {}, disconnect: async () => {} });
-  container.get(Component.Config).init();
-  const server = await container.get(Component.Application).init();
-  server.close();
-`];
+const startWithStubDatabase = [fileURLToPath(new URL('./fixtures/start-with-stub-database.mjs', import.meta.url))];
 
 test('приложение слушает настроенный порт и не пишет соль в логи', async () => {
   await withDirectory(async (directory) => {

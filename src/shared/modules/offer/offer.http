@@ -1,0 +1,50 @@
+@baseUrl = http://localhost:3000
+@offerId = 6329c3d6a04ab1061c6425ea
+
+### Список предложений
+GET {{baseUrl}}/offers
+
+### Список с указанным лимитом
+GET {{baseUrl}}/offers?limit=5
+
+### Премиальные предложения в Париже
+GET {{baseUrl}}/offers/cities/Paris/premium
+
+### Детали предложения — подставьте ID из списка в offerId
+GET {{baseUrl}}/offers/{{offerId}}
+
+### Некорректный идентификатор — 400
+GET {{baseUrl}}/offers/not-an-id
+
+### Создание без авторизации — 401
+POST {{baseUrl}}/offers
+Content-Type: application/json
+
+{
+  "title": "Светлая квартира рядом с парком",
+  "description": "Квартира с отдельной спальней и кухней недалеко от центра Парижа.",
+  "city": "Paris",
+  "previewImage": "https://example.com/preview.jpg",
+  "images": [
+    "https://example.com/1.jpg", "https://example.com/2.jpg", "https://example.com/3.jpg",
+    "https://example.com/4.jpg", "https://example.com/5.jpg", "https://example.com/6.jpg"
+  ],
+  "isPremium": true,
+  "housingType": "apartment",
+  "roomsCount": 2,
+  "guestsCount": 3,
+  "price": 150,
+  "amenities": ["Washer"],
+  "location": { "latitude": 48.85661, "longitude": 2.351499 }
+}
+
+### Редактирование без авторизации — 401
+PATCH {{baseUrl}}/offers/{{offerId}}
+Content-Type: application/json
+
+{
+  "price": 180
+}
+
+### Удаление без авторизации — 401
+DELETE {{baseUrl}}/offers/{{offerId}}
