@@ -1,7 +1,9 @@
 openapi: 3.0.3
 info:
   title: API сервера «Шесть городов»
-  description: Список ресурсов и маршрутов REST API сервиса «Шесть городов».
+  description: |-
+    REST API сервиса «Шесть городов». На этом этапе авторизация и проверка прав
+    не выполняются. Вход, проверка токена и загрузка файлов пока не реализованы.
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
@@ -30,7 +32,7 @@ paths:
       summary: Список предложений
       operationId: getOffers
       description: Возвращает предложения, отсортированные по дате публикации (по убыванию). По умолчанию не больше 60.
-      security: [{}, bearerAuth: []]
+      security: [{}]
       parameters:
         - name: limit
           in: query
@@ -56,8 +58,8 @@ paths:
       tags: [offers]
       summary: Создание предложения
       operationId: createOffer
-      description: Создаёт новое предложение по аренде. Доступно только авторизованным клиентам.
-      security: [{bearerAuth: []}]
+      description: Создаёт новое предложение по аренде.
+      security: [{}]
       requestBody:
         description: Информация для создания нового предложения
         required: true
@@ -74,8 +76,8 @@ paths:
                 $ref: '#/components/schemas/Offer'
         '400':
           $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /offers/cities/{city}/premium:
     get:
@@ -83,7 +85,7 @@ paths:
       summary: Премиальные предложения для города
       operationId: getPremiumOffers
       description: Возвращает не больше 3 предложений с флагом «Премиум» для города, отсортированных по дате публикации (по убыванию).
-      security: [{}, bearerAuth: []]
+      security: [{}]
       parameters:
         - name: city
           in: path
@@ -112,7 +114,7 @@ paths:
       summary: Детальная информация о предложении
       operationId: getOffer
       description: Возвращает все поля предложения и сведения о количестве комментариев.
-      security: [{}, bearerAuth: []]
+      security: [{}]
       responses:
         '200':
           description: Объект предложения
@@ -129,8 +131,8 @@ paths:
       tags: [offers]
       summary: Редактирование предложения
       operationId: updateOffer
-      description: Обновляет предложение. Клиент может редактировать только свои предложения.
-      security: [{bearerAuth: []}]
+      description: Обновляет предложение.
+      security: [{}]
       requestBody:
         description: Обновлённая информация о предложении. Передаются только изменяемые поля
         required: true
@@ -147,10 +149,6 @@ paths:
                 $ref: '#/components/schemas/Offer'
         '400':
           $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -158,17 +156,13 @@ paths:
       tags: [offers]
       summary: Удаление предложения
       operationId: deleteOffer
-      description: Удаляет предложение вместе с его комментариями. Клиент может удалять только свои предложения.
-      security: [{bearerAuth: []}]
+      description: Удаляет предложение вместе с его комментариями.
+      security: [{}]
       responses:
         '204':
           description: Предложение удалено
         '400':
           $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -180,7 +174,7 @@ paths:
       summary: Список комментариев предложения
       operationId: getOfferComments
       description: Возвращает не больше 50 последних комментариев, отсортированных по дате публикации (по убыванию).
-      security: [{}, bearerAuth: []]
+      security: [{}]
       responses:
         '200':
           description: Список комментариев
@@ -200,8 +194,8 @@ paths:
       tags: [comments]
       summary: Добавление комментария
       operationId: createComment
-      description: Добавляет новый комментарий к предложению. Доступно только авторизованным клиентам.
-      security: [{bearerAuth: []}]
+      description: Добавляет новый комментарий к предложению.
+      security: [{}]
       requestBody:
         description: Информация для создания комментария
         required: true
@@ -218,18 +212,18 @@ paths:
                 $ref: '#/components/schemas/Comment'
         '400':
           $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
 
   /favorites:
+    parameters:
+      - $ref: '#/components/parameters/FavoriteUserId'
     get:
       tags: [favorites]
       summary: Список избранных предложений
       operationId: getFavorites
       description: Возвращает все предложения, добавленные пользователем в избранное.
-      security: [{bearerAuth: []}]
+      security: [{}]
       responses:
         '200':
           description: Список избранных предложений
@@ -239,18 +233,21 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/OfferPreview'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /favorites/{offerId}:
     parameters:
       - $ref: '#/components/parameters/OfferId'
+      - $ref: '#/components/parameters/FavoriteUserId'
     post:
       tags: [favorites]
       summary: Добавление предложения в избранное
       operationId: addFavorite
-      description: Добавляет предложение в список избранных. Доступно только авторизованным клиентам.
-      security: [{bearerAuth: []}]
+      description: Добавляет предложение в список избранных.
+      security: [{}]
       responses:
         '200':
           description: Предложение добавлено. Объект предложения
@@ -260,8 +257,6 @@ paths:
                 $ref: '#/components/schemas/Offer'
         '400':
           $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -269,8 +264,8 @@ paths:
       tags: [favorites]
       summary: Удаление предложения из избранного
       operationId: removeFavorite
-      description: Удаляет предложение из списка избранных. Доступно только авторизованным клиентам.
-      security: [{bearerAuth: []}]
+      description: Удаляет предложение из списка избранных.
+      security: [{}]
       responses:
         '200':
           description: Предложение удалено. Объект предложения
@@ -280,8 +275,6 @@ paths:
                 $ref: '#/components/schemas/Offer'
         '400':
           $ref: '#/components/responses/ValidationError'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -290,7 +283,7 @@ paths:
       tags: [users]
       summary: Регистрация пользователя
       operationId: registerUser
-      description: Создаёт нового пользователя. Доступно только анонимным клиентам.
+      description: Создаёт нового пользователя.
       security: [{}]
       requestBody:
         description: Информация для создания нового пользователя
@@ -308,12 +301,6 @@ paths:
                 $ref: '#/components/schemas/User'
         '400':
           $ref: '#/components/responses/ValidationError'
-        '403':
-          description: Регистрация недоступна авторизованному клиенту
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
         '409':
           description: Пользователь с таким email уже существует
           content:
@@ -350,6 +337,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
 
   /users/login/me:
     get:
@@ -367,6 +356,8 @@ paths:
                 $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
 
   /users/{userId}/avatar:
     parameters:
@@ -416,6 +407,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
 
   /images:
     post:
@@ -457,6 +450,8 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
 
 components:
   securitySchemes:
@@ -467,6 +462,14 @@ components:
       description: 'Токен передаётся в заголовке Authorization: Bearer <token>'
 
   parameters:
+    FavoriteUserId:
+      name: userId
+      in: query
+      description: Идентификатор пользователя (временно, до реализации авторизации)
+      required: true
+      schema:
+        $ref: '#/components/schemas/Id'
+
     OfferId:
       name: offerId
       in: path
@@ -476,6 +479,13 @@ components:
         $ref: '#/components/schemas/Id'
 
   responses:
+    NotImplemented:
+      description: Операция пока не реализована
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
     ValidationError:
       description: Переданные данные не прошли валидацию
       content:
@@ -568,6 +578,7 @@ components:
     CreateUser:
       type: object
       required: [name, email, password, type]
+      additionalProperties: false
       properties:
         name:
           type: string
@@ -588,12 +599,13 @@ components:
         avatarPath:
           type: string
           format: uri
-          description: Необязательная ссылка на изображение аватара
+          description: Необязательная HTTP(S)-ссылка на аватар с расширением .jpg или .png
           example: https://14.design.htmlacademy.pro/avatars/music.jpg
 
     LoginUser:
       type: object
       required: [email, password]
+      additionalProperties: false
       properties:
         email:
           type: string
@@ -601,6 +613,8 @@ components:
           example: music@example.com
         password:
           type: string
+          minLength: 6
+          maxLength: 12
           example: demo1234
 
     AuthToken:
@@ -703,9 +717,12 @@ components:
 
     CreateOffer:
       type: object
-      description: Данные для создания предложения. Дата публикации, автор, рейтинг и количество комментариев вычисляются сервером.
-      required: [title, description, city, previewImage, images, isPremium, housingType, roomsCount, guestsCount, price, amenities, location]
+      description: Данные для создания предложения. Дата публикации, рейтинг и количество комментариев вычисляются сервером.
+      required: [title, description, city, previewImage, images, isPremium, housingType, roomsCount, guestsCount, price, amenities, location, authorId]
+      additionalProperties: false
       properties:
+        authorId:
+          $ref: '#/components/schemas/Id'
         title:
           type: string
           minLength: 10
@@ -762,6 +779,7 @@ components:
       type: object
       description: Данные для обновления предложения. Все поля необязательные
       minProperties: 1
+      additionalProperties: false
       properties:
         title:
           type: string
@@ -831,9 +849,12 @@ components:
 
     CreateComment:
       type: object
-      description: Данные для создания комментария. Дата публикации и автор задаются сервером
-      required: [text, rating]
+      description: Данные для создания комментария. Дата публикации задаётся сервером.
+      required: [text, rating, authorId]
+      additionalProperties: false
       properties:
+        authorId:
+          $ref: '#/components/schemas/Id'
         text:
           type: string
           minLength: 5

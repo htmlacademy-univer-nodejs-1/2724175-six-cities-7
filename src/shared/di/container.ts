@@ -13,7 +13,6 @@ export function createContainer(): Container {
   container.bind<Logger>(Component.Logger).to(PinoLogger).inSingletonScope();
   container.bind<Config>(Component.Config).to(ConvictConfig).inSingletonScope();
   container.bind<Application>(Component.Application).to(Application).inSingletonScope();
-  container.bind(Component.CurrentUser).toConstantValue(async () => null);
   registerDatabase(container);
   return container;
 }
