@@ -1,0 +1,19 @@
+@baseUrl = http://localhost:3000
+@offerId = 6329c3d6a04ab1061c6425ea
+@authorId = 6329c3d6a04ab1061c6425eb
+
+### Список комментариев — подставьте существующий offerId
+GET {{baseUrl}}/offers/{{offerId}}/comments
+
+### Добавление комментария — 201; подставьте существующий authorId
+POST {{baseUrl}}/offers/{{offerId}}/comments
+Content-Type: application/json
+
+{
+  "text": "Удобное расположение, рядом с остановкой.",
+  "rating": 5,
+  "authorId": "{{authorId}}"
+}
+
+### Некорректный идентификатор — 400
+GET {{baseUrl}}/offers/not-an-id/comments

@@ -7,6 +7,7 @@ import { Logger } from '../../libs/logger/logger.interface.js';
 import { Types } from 'mongoose';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { OfferNotFoundError } from '../offer/offer-not-found.error.js';
 import { OfferEntity } from '../offer/offer.model.js';
 import { UserService } from './user-service.interface.js';
 import { UserDocument, UserEntity } from './user.model.js';
@@ -38,7 +39,7 @@ export class DefaultUserService implements UserService {
 
   public async addToFavorites(userId: string, offerId: string): Promise<UserDocument | null> {
     if (!await this.offerModel.exists({ _id: offerId })) {
-      throw new Error('Предложение не найдено.');
+      throw new OfferNotFoundError();
     }
     return this.userModel.findOneAndUpdate({ _id: userId },
       { $addToSet: { favorites: new Types.ObjectId(offerId) } }, { new: true }).exec() as unknown as Promise<UserDocument | null>;

@@ -2,28 +2,22 @@ import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { Controller } from '../../shared/libs/rest/controller.js';
 import { HttpError } from '../../shared/libs/rest/exception-filter.js';
-import { CreateUserDto } from '../../shared/modules/user/dto/create-user.dto.js';
+import { ValidateDtoMiddleware } from '../../shared/libs/rest/validate-dto.middleware.js';
+import { ValidateObjectIdMiddleware } from '../../shared/libs/rest/validate-object-id.middleware.js';
 import { UserService } from '../../shared/modules/user/user-service.interface.js';
-import { CurrentUser } from './offers.controller.js';
 import { userResponse } from './responses.js';
-
-type RegisterBody = Omit<CreateUserDto, 'avatar'> & { avatarPath?: string };
-type LoginBody = Pick<CreateUserDto, 'email' | 'password'>;
+import { LoginBody, RegisterBody } from './user-request.dto.js';
 
 export class UsersController extends Controller {
-  constructor(private readonly users: UserService, private readonly salt: string,
-    private readonly currentUser: CurrentUser) {
+  constructor(private readonly users: UserService, private readonly salt: string) {
     super();
-    this.addRoute({ method: 'post', path: '/register', handler: this.register });
-    this.addRoute({ method: 'post', path: '/login', handler: this.login });
+    this.addRoute({ method: 'post', path: '/register', handler: this.create, middleware: [new ValidateDtoMiddleware(RegisterBody)] });
+    this.addRoute({ method: 'post', path: '/login', handler: this.login, middleware: [new ValidateDtoMiddleware(LoginBody)] });
     this.addRoute({ method: 'get', path: '/login/me', handler: this.me });
-    this.addRoute({ method: 'post', path: '/:userId/avatar', handler: this.uploadAvatar });
+    this.addRoute({ method: 'post', path: '/:userId/avatar', handler: this.uploadAvatar, middleware: [new ValidateObjectIdMiddleware('userId')] });
   }
 
-  private async register(request: Request<Record<string, string>, unknown, RegisterBody>, response: Response): Promise<void> {
-    if (await this.currentUser(request)) {
-      throw new HttpError(StatusCodes.FORBIDDEN, 'Регистрация недоступна авторизованному клиенту.');
-    }
+  private async create(request: Request<Record<string, string>, unknown, RegisterBody>, response: Response): Promise<void> {
     const { avatarPath, ...dto } = request.body;
     try {
       this.created(response, userResponse(await this.users.create({ ...dto, avatar: avatarPath }, this.salt)));
@@ -35,7 +29,7 @@ export class UsersController extends Controller {
     }
   }
 
-  private async login(_request: Request<Record<string, string>, unknown, LoginBody>): Promise<void> {
+  private async login(): Promise<void> {
     throw new HttpError(StatusCodes.NOT_IMPLEMENTED, 'Вход пока недоступен.');
   }
 

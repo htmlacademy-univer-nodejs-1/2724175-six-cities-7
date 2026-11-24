@@ -5,6 +5,7 @@ import { Container } from 'inversify';
 import { Types } from 'mongoose';
 import { registerDatabase } from '../dist/shared/di/database-container.js';
 import { Component } from '../dist/shared/di/component.js';
+import { OfferNotFoundError } from '../dist/shared/modules/offer/offer-not-found.error.js';
 import { CITY_LOCATIONS } from '../dist/shared/types/index.js';
 
 const uri = process.env.MONGO_TEST_URI;
@@ -136,9 +137,24 @@ describe('сервисы MongoDB', { skip: !uri }, () => {
 
   it('отклоняет комментарий и избранное для отсутствующего предложения', async () => {
     const missingId = new Types.ObjectId();
-    await assert.rejects(comments.create({ text: 'Нет предложения', rating: 5, author: user._id, offer: missingId }), /не найдено/);
+    await assert.rejects(comments.create({ text: 'Нет предложения', rating: 5, author: user._id, offer: missingId }), OfferNotFoundError);
     assert.equal(await container.get(Component.CommentModel).countDocuments({ offer: missingId }), 0);
-    await assert.rejects(users.addToFavorites(user.id, missingId.toString()), /не найдено/);
+    await assert.rejects(users.addToFavorites(user.id, missingId.toString()), OfferNotFoundError);
+  });
+
+  it('удаляет созданный комментарий, если предложение исчезло до обновления рейтинга', async (t) => {
+    const offer = await offers.create(offerInput(user._id));
+    const commentModel = container.get(Component.CommentModel);
+    const create = commentModel.create.bind(commentModel);
+    t.mock.method(commentModel, 'create', async (input) => {
+      const comment = await create(input);
+      await container.get(Component.OfferModel).deleteOne({ _id: offer._id });
+      return comment;
+    });
+    await assert.rejects(comments.create({
+      text: 'Тестовый комментарий', rating: 5, author: user._id, offer: offer._id
+    }), OfferNotFoundError);
+    assert.equal(await commentModel.countDocuments({ offer: offer._id }), 0);
   });
 
   it('возвращает 60 предложений по умолчанию и допускает больший лимит', async () => {

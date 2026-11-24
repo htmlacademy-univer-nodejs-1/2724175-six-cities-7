@@ -1,11 +1,12 @@
 @baseUrl = http://localhost:3000
 @offerId = 6329c3d6a04ab1061c6425ea
+@userId = 6329c3d6a04ab1061c6425eb
 
-### Список избранного без авторизации — 401
-GET {{baseUrl}}/favorites
+### Список избранного — подставьте существующий userId
+GET {{baseUrl}}/favorites?userId={{userId}}
 
-### Добавление в избранное без авторизации — 401
-POST {{baseUrl}}/favorites/{{offerId}}
+### Добавление в избранное — подставьте существующий offerId
+POST {{baseUrl}}/favorites/{{offerId}}?userId={{userId}}
 
-### Удаление из избранного без авторизации — 401
-DELETE {{baseUrl}}/favorites/{{offerId}}
+### Удаление из избранного
+DELETE {{baseUrl}}/favorites/{{offerId}}?userId={{userId}}

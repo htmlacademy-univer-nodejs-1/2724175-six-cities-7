@@ -1,4 +1,5 @@
 import { Expose, plainToInstance, Type } from 'class-transformer';
+import { CommentDocument } from '../../shared/modules/comment/comment.model.js';
 import { OfferDocument } from '../../shared/modules/offer/offer.model.js';
 import { UserEntity } from '../../shared/modules/user/user.model.js';
 
@@ -46,6 +47,10 @@ export function userResponse(user: Pick<UserEntity, 'id' | 'name' | 'email' | 'a
     id: user.id, name: user.name, email: user.email, type: user.type,
     avatarPath: user.avatar || '/static/default-avatar.jpg'
   }, options);
+}
+
+export function commentResponse({ id, text, rating, postDate, author }: CommentDocument) {
+  return { id, text, rating, postDate, author: userResponse(author as UserEntity) };
 }
 
 export function offerPreview(offer: OfferDocument, isFavorite: boolean): OfferPreviewResponse {

@@ -4,6 +4,7 @@ import { once } from 'node:events';
 import test from 'node:test';
 import { Component } from '../dist/shared/di/component.js';
 import { createContainer } from '../dist/shared/di/container.js';
+import { OfferNotFoundError } from '../dist/shared/modules/offer/offer-not-found.error.js';
 import { CITY_LOCATIONS } from '../dist/shared/types/index.js';
 
 const id = '6329c3d6a04ab1061c6425ea';
@@ -17,6 +18,13 @@ const fields = {
   amenities: ['Washer'], location, ratingSum: 8
 };
 const offer = { ...fields, id, author: user, toObject: () => fields };
+const missingId = '6329c3d6a04ab1061c6425eb';
+const offerBody = Object.fromEntries([
+  'title', 'price', 'housingType', 'isPremium', 'previewImage', 'description', 'images',
+  'roomsCount', 'guestsCount', 'amenities', 'location'
+].map((key) => [key, fields[key]]));
+Object.assign(offerBody, { city: 'Paris', authorId: id });
+const commentBody = { text: 'Отличная квартира!', rating: 4, authorId: id };
 
 async function start(t, overrides = {}) {
   const container = createContainer();
@@ -27,10 +35,13 @@ async function start(t, overrides = {}) {
   container.rebind(Component.DatabaseClient).toConstantValue({ connect: async () => {}, disconnect: async () => {} });
   container.rebind(Component.OfferService).toConstantValue({
     find: async () => [offer], findPremiumByCity: async () => [offer], findById: async (value) => value === id ? offer : null,
+    exists: async (value) => value === id,
     ...overrides.offers
   });
-  container.rebind(Component.UserService).toConstantValue({ create: async () => user, ...overrides.users });
-  if (overrides.currentUser) container.rebind(Component.CurrentUser).toConstantValue(overrides.currentUser);
+  container.rebind(Component.UserService).toConstantValue({
+    create: async () => user, findById: async (value) => value === id ? user : null, ...overrides.users
+  });
+  container.rebind(Component.CommentService).toConstantValue({ ...overrides.comments });
   const server = await container.get(Component.Application).init();
   t.after(async () => {
     const closed = once(server, 'close');
@@ -73,7 +84,7 @@ test('регистрация возвращает 201 без пароля, а п
 });
 
 test('фильтр разделяет некорректный запрос, отсутствующий маршрут и сбой сервера', async (t) => {
-  const { request, logs } = await start(t, { offers: { find: async () => { throw new Error('Внутренняя деталь'); } } });
+  const { request, logs } = await start(t, { offers: { find: async () => { throw new URIError('Внутренняя деталь'); } } });
   assert.equal((await request('/users/register', json('{'))).status, 400);
   assert.equal((await request('/offers/not-an-id')).status, 400);
   assert.equal((await request('/missing')).status, 404);
@@ -83,65 +94,187 @@ test('фильтр разделяет некорректный запрос, о�
   assert.equal(logs[0][1].message, 'Внутренняя деталь');
 });
 
-test('защищённые маршруты не допускают анонимные запросы', async (t) => {
-  const { request } = await start(t);
-  assert.equal((await request('/offers', json('{}'))).status, 401);
-  assert.equal((await request('/favorites')).status, 401);
+test('ошибка декодирования параметра Express возвращает 400 до вызова сервиса', async (t) => {
+  const { request, logs } = await start(t, { offers: {
+    findById: () => assert.fail('Некорректный параметр передан в сервис')
+  } });
+  const response = await request('/offers/%E0%A4%A');
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: 'Некорректное кодирование параметра маршрута.' });
+  assert.deepEqual(logs, []);
 });
 
-test('отложенные операции возвращают 501, комментарии не зарегистрированы', async (t) => {
+test('заглушки возвращают 501 после проверки входных данных', async (t) => {
   const { request } = await start(t);
-  assert.equal((await request('/users/login', json('{}'))).status, 501);
+  assert.equal((await request('/users/login', json('{}'))).status, 400);
+  assert.equal((await request('/users/login', json(JSON.stringify({ email: user.email, password: 'demo1234' })))).status, 501);
   assert.equal((await request('/users/login/me')).status, 501);
+  assert.equal((await request('/users/invalid/avatar', { method: 'POST' })).status, 400);
   assert.equal((await request(`/users/${id}/avatar`, { method: 'POST' })).status, 501);
   assert.equal((await request('/images', { method: 'POST' })).status, 501);
-  assert.equal((await request(`/offers/${id}/comments`)).status, 404);
 });
 
-const currentUser = async () => ({ id, favorites: [] });
-
-test('создание предложения использует автора из контекста и преобразует город', async (t) => {
+test('анонимный клиент создаёт предложение с указанным автором', async (t) => {
   let input;
-  const { request } = await start(t, { currentUser, offers: { create: async (dto) => { input = dto; return offer; } } });
-  const response = await request('/offers', json(JSON.stringify({ ...fields, city: 'Paris', author: 'чужой ID' })));
+  const createdOffer = { ...offer, toObject: () => ({ ...fields, rating: 0, commentCount: 0 }) };
+  const { request } = await start(t, { offers: {
+    create: async (dto) => { input = dto; return createdOffer; }, findById: async () => createdOffer
+  } });
+  const response = await request('/offers', json(JSON.stringify(offerBody)));
   assert.equal(response.status, 201);
   assert.equal(String(input.author), id);
   assert.deepEqual(input.city, { name: 'Paris', location });
-  assert.equal((await response.json()).author.id, id);
+  const result = await response.json();
+  assert.equal(result.author.id, id);
+  assert.equal(result.rating, 0);
+  assert.equal((await request('/offers', json(JSON.stringify({ ...offerBody, authorId: missingId })))).status, 404);
 });
 
-test('владелец обновляет и удаляет предложение, другому пользователю отказано', async (t) => {
-  let owns = false;
-  const { request } = await start(t, { currentUser, offers: {
-    exists: async () => true, isAuthor: async () => owns,
-    updateById: async (_id, dto) => {
+test('анонимный клиент обновляет и удаляет существующее предложение', async (t) => {
+  const { request } = await start(t, { offers: {
+    updateById: async (value, dto) => {
       assert.equal(dto.price, 200);
-      return { ...offer, toObject: () => ({ ...fields, price: dto.price }) };
-    }, deleteById: async () => offer
+      return value === id ? { ...offer, toObject: () => ({ ...fields, price: dto.price }) } : null;
+    }, deleteById: async (value) => value === id ? offer : null
   } });
-  const path = `/offers/${id}`;
   const patch = { ...json('{"price":200}'), method: 'PATCH' };
-  assert.equal((await request(path, patch)).status, 403);
-  assert.equal((await request(path, { method: 'DELETE' })).status, 403);
-  owns = true;
-  assert.equal((await (await request(path, patch)).json()).price, 200);
-  const deleted = await request(path, { method: 'DELETE' });
+  assert.equal((await (await request(`/offers/${id.toUpperCase()}`, patch)).json()).price, 200);
+  assert.equal((await request(`/offers/${missingId}`, patch)).status, 404);
+  const deleted = await request(`/offers/${id}`, { method: 'DELETE' });
   assert.equal(deleted.status, 204);
   assert.equal(await deleted.text(), '');
+  assert.equal((await request(`/offers/${missingId}`, { method: 'DELETE' })).status, 404);
 });
 
-test('избранное использует ID текущего пользователя, а не ID из запроса', async (t) => {
+test('избранное добавляется, перечисляется и удаляется по userId из query', async (t) => {
   let saved = false;
-  const { request } = await start(t, { currentUser, offers: { findFavorites: async (userId) => {
+  const { request } = await start(t, { offers: { findFavorites: async (userId) => {
     assert.equal(userId, id);
     return saved ? [offer] : [];
   } }, users: {
-    addToFavorites: async (userId, offerId) => { assert.deepEqual([userId, offerId], [id, id]); saved = true; },
-    removeFromFavorites: async (userId, offerId) => { assert.deepEqual([userId, offerId], [id, id]); saved = false; }
+    addToFavorites: async (userId, offerId) => { assert.deepEqual([userId, offerId], [id, id]); saved = true; return user; },
+    removeFromFavorites: async (userId, offerId) => { assert.deepEqual([userId, offerId], [id, id]); saved = false; return user; }
   } });
-  const path = `/favorites/${id}`;
+  const query = `?userId=${id}`;
+  const path = `/favorites/${id}${query}`;
   assert.equal((await (await request(path, { method: 'POST' })).json()).isFavorite, true);
-  assert.equal((await (await request('/favorites')).json())[0].isFavorite, true);
+  assert.equal((await (await request(`/favorites${query}`)).json())[0].isFavorite, true);
   assert.equal((await (await request(path, { method: 'DELETE' })).json()).isFavorite, false);
-  assert.deepEqual(await (await request('/favorites')).json(), []);
+  assert.deepEqual(await (await request(`/favorites${query}`)).json(), []);
+  assert.equal((await request(`/favorites?userId=${missingId}`)).status, 404);
+  assert.equal((await request(`/favorites/${missingId}${query}`, { method: 'POST' })).status, 404);
+});
+
+test('комментарии можно добавить и прочитать, но нельзя изменить или удалить напрямую', async (t) => {
+  const comments = [];
+  const { request } = await start(t, { comments: {
+    findByOfferId: async (value) => { assert.equal(value, id); return comments; },
+    create: async (dto) => {
+      assert.deepEqual([String(dto.offer), String(dto.author)], [id, id]);
+      const comment = { ...dto, id, author: user, postDate: fields.postDate };
+      comments.push(comment);
+      return comment;
+    }
+  } });
+  const path = `/offers/${id}/comments`;
+  const created = await request(path, json(JSON.stringify(commentBody)));
+  assert.equal(created.status, 201);
+  const comment = await created.json();
+  assert.deepEqual(Object.keys(comment).sort(), ['author', 'id', 'postDate', 'rating', 'text']);
+  assert.equal(comment.author.id, id);
+  assert.equal('password' in comment.author, false);
+  assert.deepEqual(await (await request(path)).json(), [comment]);
+  assert.equal((await request(path, { method: 'DELETE' })).status, 404);
+  assert.equal((await request(path, { ...json('{}'), method: 'PATCH' })).status, 404);
+  assert.equal((await request(`/offers/${missingId}/comments`)).status, 404);
+  assert.equal((await request(path, json(JSON.stringify({ ...commentBody, authorId: missingId })))).status, 404);
+});
+
+test('валидация отклоняет некорректные ObjectId и query до вызова сервисов', async (t) => {
+  const unexpected = () => assert.fail('Невалидный запрос передан в сервис');
+  const { request } = await start(t, { offers: {
+    find: unexpected, findById: unexpected, findPremiumByCity: unexpected, exists: unexpected,
+    updateById: unexpected, deleteById: unexpected
+  }, users: { findById: unexpected } });
+  const paths = [
+    ['/offers?limit=0'], ['/offers?limit=1&limit=2'], ['/offers?limit=9007199254740992'], ['/offers/cities/Rome/premium'],
+    ['/offers/bad'], ['/offers/bad', 'PATCH'], ['/offers/bad', 'DELETE'], ['/offers/bad/comments'],
+    ['/offers/bad/comments', 'POST'], ['/favorites'], ['/favorites?userId=bad'],
+    [`/favorites/bad?userId=${id}`, 'POST'], [`/favorites/bad?userId=${id}`, 'DELETE']
+  ];
+  for (const [path, method] of paths) {
+    assert.equal((await request(path, { method })).status, 400, `${method ?? 'GET'} ${path}`);
+  }
+});
+
+test('валидация DTO не передаёт невалидное тело в сервисы', async (t) => {
+  const unexpected = () => assert.fail('Невалидный запрос передан в сервис');
+  const { request } = await start(t, { offers: { updateById: unexpected, create: unexpected, exists: unexpected },
+    users: { findById: unexpected, create: unexpected }, comments: { create: unexpected } });
+  for (const body of [[], {}, { ...offerBody, images: [] }, { ...offerBody, location: [{ ...location }] },
+    { ...offerBody, location: { ...location, latitude: 91 } }, { ...offerBody, authorId: 'bad' },
+    { ...offerBody, price: '150' }, { ...offerBody, rating: 5 }]) {
+    assert.equal((await request('/offers', json(JSON.stringify(body)))).status, 400);
+  }
+  for (const body of [{}, { price: null }, { authorId: id }, { location: { latitude: 50 } }]) {
+    assert.equal((await request(`/offers/${id}`, { ...json(JSON.stringify(body)), method: 'PATCH' })).status, 400);
+  }
+  for (const body of [{ ...commentBody, text: 'да' }, { ...commentBody, rating: 4.5 }, { ...commentBody, postDate: fields.postDate }]) {
+    assert.equal((await request(`/offers/${id}/comments`, json(JSON.stringify(body)))).status, 400);
+  }
+  const registerBody = { name: user.name, email: user.email, password: 'demo1234', type: user.type };
+  for (const body of [{ ...registerBody, email: 'bad' }, { ...registerBody, password: 'short' },
+    { ...registerBody, avatarPath: 'https://example.com/avatar.gif' }]) {
+    assert.equal((await request('/users/register', json(JSON.stringify(body)))).status, 400);
+  }
+});
+
+
+test('вложенные объекты проверяются до преобразования DTO и не доходят до сервисов', async (t) => {
+  const unexpected = () => assert.fail('Невалидный запрос передан в сервис');
+  const { request, logs } = await start(t, { offers: { create: unexpected, updateById: unexpected },
+    users: { findById: unexpected } });
+  const invalidLocations = [
+    { ...location, latitude: { constructor: 'не конструктор', value: 1 } },
+    { ...location, constructor: null },
+    { ...location, toString: 'лишнее поле' },
+    { ...location, extra: 1 },
+    { ...location, ['__proto__']: {} }
+  ];
+  for (const location of invalidLocations) {
+    assert.equal((await request('/offers', json(JSON.stringify({ ...offerBody, location })))).status, 400);
+    assert.equal((await request(`/offers/${id}`, { ...json(JSON.stringify({ location })), method: 'PATCH' })).status, 400);
+  }
+  assert.deepEqual(logs, []);
+});
+
+test('ссылки на изображения в запросах требуют префикс http:// или https://', async (t) => {
+  const unexpected = () => assert.fail('Невалидный запрос передан в сервис');
+  const { request } = await start(t, { offers: { create: unexpected, updateById: unexpected },
+    users: { findById: unexpected } });
+  for (const url of ['http:example.com/photo.jpg', 'ftp://example.com/photo.jpg']) {
+    for (const patch of [{ previewImage: url }, { images: [url, ...offerBody.images.slice(1)] }]) {
+      assert.equal((await request('/offers', json(JSON.stringify({ ...offerBody, ...patch })))).status, 400);
+      assert.equal((await request(`/offers/${id}`, { ...json(JSON.stringify(patch)), method: 'PATCH' })).status, 400);
+    }
+  }
+});
+
+test('исчезновение предложения при записи даёт 404, неожиданный сбой даёт 500', async (t) => {
+  let error = new OfferNotFoundError();
+  const fail = async () => { throw error; };
+  const { request } = await start(t, { comments: { create: fail }, users: { addToFavorites: fail } });
+  const addComment = () => request(`/offers/${id}/comments`, json(JSON.stringify(commentBody)));
+  const addFavorite = () => request(`/favorites/${id}?userId=${id}`, { method: 'POST' });
+  for (const send of [addComment, addFavorite]) {
+    const response = await send();
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { error: 'Предложение не найдено.' });
+  }
+  error = new Error('Предложение не найдено.');
+  for (const send of [addComment, addFavorite]) {
+    const response = await send();
+    assert.equal(response.status, 500);
+    assert.deepEqual(await response.json(), { error: 'Внутренняя ошибка сервера.' });
+  }
 });

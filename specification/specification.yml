@@ -76,6 +76,8 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /offers/cities/{city}/premium:
     get:
@@ -224,6 +226,8 @@ paths:
           $ref: '#/components/responses/NotFound'
 
   /favorites:
+    parameters:
+      - $ref: '#/components/parameters/FavoriteUserId'
     get:
       tags: [favorites]
       summary: Список избранных предложений
@@ -239,12 +243,17 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/OfferPreview'
+        '400':
+          $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /favorites/{offerId}:
     parameters:
       - $ref: '#/components/parameters/OfferId'
+      - $ref: '#/components/parameters/FavoriteUserId'
     post:
       tags: [favorites]
       summary: Добавление предложения в избранное
@@ -350,6 +359,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
 
   /users/login/me:
     get:
@@ -367,6 +378,8 @@ paths:
                 $ref: '#/components/schemas/User'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
 
   /users/{userId}/avatar:
     parameters:
@@ -416,6 +429,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
 
   /images:
     post:
@@ -457,6 +472,8 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '501':
+          $ref: '#/components/responses/NotImplemented'
 
 components:
   securitySchemes:
@@ -467,6 +484,14 @@ components:
       description: 'Токен передаётся в заголовке Authorization: Bearer <token>'
 
   parameters:
+    FavoriteUserId:
+      name: userId
+      in: query
+      description: Идентификатор пользователя (временно, до реализации авторизации)
+      required: true
+      schema:
+        $ref: '#/components/schemas/Id'
+
     OfferId:
       name: offerId
       in: path
@@ -476,6 +501,13 @@ components:
         $ref: '#/components/schemas/Id'
 
   responses:
+    NotImplemented:
+      description: Операция пока не реализована
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
     ValidationError:
       description: Переданные данные не прошли валидацию
       content:
@@ -543,6 +575,15 @@ components:
           maximum: 180
           example: 4.895168
 
+    OfferInputLocation:
+      allOf:
+        - $ref: '#/components/schemas/Location'
+        - type: object
+          additionalProperties: false
+          properties:
+            latitude: {}
+            longitude: {}
+
     User:
       type: object
       description: Пользователь без конфиденциальных данных
@@ -568,6 +609,7 @@ components:
     CreateUser:
       type: object
       required: [name, email, password, type]
+      additionalProperties: false
       properties:
         name:
           type: string
@@ -588,12 +630,13 @@ components:
         avatarPath:
           type: string
           format: uri
-          description: Необязательная ссылка на изображение аватара
+          description: Необязательная HTTP(S)-ссылка на аватар с расширением .jpg или .png
           example: https://14.design.htmlacademy.pro/avatars/music.jpg
 
     LoginUser:
       type: object
       required: [email, password]
+      additionalProperties: false
       properties:
         email:
           type: string
@@ -601,6 +644,8 @@ components:
           example: music@example.com
         password:
           type: string
+          minLength: 6
+          maxLength: 12
           example: demo1234
 
     AuthToken:
@@ -647,10 +692,12 @@ components:
           example: false
         rating:
           type: number
-          minimum: 1
-          maximum: 5
-          multipleOf: 0.1
-          description: Рейтинг с точностью до одного знака после запятой
+          oneOf:
+            - enum: [0]
+            - minimum: 1
+              maximum: 5
+              multipleOf: 0.1
+          description: 0, если оценок ещё нет; иначе от 1 до 5 с точностью до одного знака после запятой
           example: 4.2
         commentCount:
           type: integer
@@ -703,9 +750,12 @@ components:
 
     CreateOffer:
       type: object
-      description: Данные для создания предложения. Дата публикации, автор, рейтинг и количество комментариев вычисляются сервером.
-      required: [title, description, city, previewImage, images, isPremium, housingType, roomsCount, guestsCount, price, amenities, location]
+      description: Данные для создания предложения. Дата публикации, рейтинг и количество комментариев вычисляются сервером.
+      required: [title, description, city, previewImage, images, isPremium, housingType, roomsCount, guestsCount, price, amenities, location, authorId]
+      additionalProperties: false
       properties:
+        authorId:
+          $ref: '#/components/schemas/Id'
         title:
           type: string
           minLength: 10
@@ -721,6 +771,7 @@ components:
         previewImage:
           type: string
           format: uri
+          pattern: '^[Hh][Tt][Tt][Pp][Ss]?://'
           example: https://14.design.htmlacademy.pro/dusseldorf/preview.jpg
         images:
           type: array
@@ -729,6 +780,7 @@ components:
           items:
             type: string
             format: uri
+            pattern: '^[Hh][Tt][Tt][Pp][Ss]?://'
         isPremium:
           type: boolean
           example: false
@@ -756,12 +808,13 @@ components:
           items:
             $ref: '#/components/schemas/Amenity'
         location:
-          $ref: '#/components/schemas/Location'
+          $ref: '#/components/schemas/OfferInputLocation'
 
     UpdateOffer:
       type: object
       description: Данные для обновления предложения. Все поля необязательные
       minProperties: 1
+      additionalProperties: false
       properties:
         title:
           type: string
@@ -776,6 +829,7 @@ components:
         previewImage:
           type: string
           format: uri
+          pattern: '^[Hh][Tt][Tt][Pp][Ss]?://'
         images:
           type: array
           minItems: 6
@@ -783,6 +837,7 @@ components:
           items:
             type: string
             format: uri
+            pattern: '^[Hh][Tt][Tt][Pp][Ss]?://'
         isPremium:
           type: boolean
         housingType:
@@ -806,7 +861,7 @@ components:
           items:
             $ref: '#/components/schemas/Amenity'
         location:
-          $ref: '#/components/schemas/Location'
+          $ref: '#/components/schemas/OfferInputLocation'
 
     Comment:
       type: object
@@ -831,9 +886,12 @@ components:
 
     CreateComment:
       type: object
-      description: Данные для создания комментария. Дата публикации и автор задаются сервером
-      required: [text, rating]
+      description: Данные для создания комментария. Дата публикации задаётся сервером.
+      required: [text, rating, authorId]
+      additionalProperties: false
       properties:
+        authorId:
+          $ref: '#/components/schemas/Id'
         text:
           type: string
           minLength: 5

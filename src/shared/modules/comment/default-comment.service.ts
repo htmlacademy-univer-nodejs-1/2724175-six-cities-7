@@ -4,6 +4,7 @@ import { Component } from '../../di/component.js';
 import { CreateCommentDto } from './dto/create-comment.dto.js';
 import { CommentDocument, CommentEntity } from './comment.model.js';
 import { CommentService } from './comment-service.interface.js';
+import { OfferNotFoundError } from '../offer/offer-not-found.error.js';
 import { OfferEntity } from '../offer/offer.model.js';
 
 @injectable()
@@ -15,7 +16,7 @@ export class DefaultCommentService implements CommentService {
 
   public async create(dto: CreateCommentDto): Promise<CommentDocument> {
     if (!await this.offerModel.exists({ _id: dto.offer })) {
-      throw new Error('Предложение не найдено.');
+      throw new OfferNotFoundError();
     }
     const { text, rating, author, offer } = dto;
     const document = await this.commentModel.create({ text, rating, author, offer }) as unknown as CommentDocument;
@@ -30,7 +31,7 @@ export class DefaultCommentService implements CommentService {
         } }, 10] } } }
       ]).exec();
       if (!result.matchedCount) {
-        throw new Error('Предложение не найдено.');
+        throw new OfferNotFoundError();
       }
     } catch (error) {
       await this.commentModel.deleteOne({ _id: document._id }).exec();

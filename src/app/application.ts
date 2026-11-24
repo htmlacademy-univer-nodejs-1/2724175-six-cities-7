@@ -10,7 +10,9 @@ import { Logger } from '../shared/libs/logger/logger.interface.js';
 import { OfferService } from '../shared/modules/offer/offer-service.interface.js';
 import { UserService } from '../shared/modules/user/user-service.interface.js';
 import { ExceptionFilter, HttpError } from '../shared/libs/rest/exception-filter.js';
-import { CurrentUser, OffersController } from './controllers/offers.controller.js';
+import { CommentService } from '../shared/modules/comment/comment-service.interface.js';
+import { CommentsController } from './controllers/comments.controller.js';
+import { OffersController } from './controllers/offers.controller.js';
 import { FavoritesController } from './controllers/favorites.controller.js';
 import { UsersController } from './controllers/users.controller.js';
 import { ImagesController } from './controllers/images.controller.js';
@@ -25,7 +27,7 @@ export class Application {
     @inject(Component.DatabaseClient) private readonly database: DatabaseClient,
     @inject(Component.OfferService) private readonly offers: OfferService,
     @inject(Component.UserService) private readonly users: UserService,
-    @inject(Component.CurrentUser) private readonly currentUser: CurrentUser
+    @inject(Component.CommentService) private readonly comments: CommentService
   ) {}
 
   public async init(): Promise<Server> {
@@ -71,9 +73,10 @@ export class Application {
   }
 
   private registerRoutes(): void {
-    this.app.use('/offers', new OffersController(this.offers, this.currentUser).router);
-    this.app.use('/favorites', new FavoritesController(this.offers, this.users, this.currentUser).router);
-    this.app.use('/users', new UsersController(this.users, this.config.get('SALT'), this.currentUser).router);
+    this.app.use('/offers', new OffersController(this.offers, this.users).router);
+    this.app.use('/offers', new CommentsController(this.comments, this.offers, this.users).router);
+    this.app.use('/favorites', new FavoritesController(this.offers, this.users).router);
+    this.app.use('/users', new UsersController(this.users, this.config.get('SALT')).router);
     this.app.use('/images', new ImagesController().router);
     this.app.use((_request, _response, next) => {
       next(new HttpError(StatusCodes.NOT_FOUND, 'Маршрут не найден.'));
