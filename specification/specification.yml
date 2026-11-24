@@ -30,7 +30,7 @@ paths:
       summary: Список предложений
       operationId: getOffers
       description: Возвращает предложения, отсортированные по дате публикации (по убыванию). По умолчанию не больше 60.
-      security: [{}]
+      security: [{}, bearerAuth: []]
       parameters:
         - name: limit
           in: query
@@ -57,7 +57,7 @@ paths:
       summary: Создание предложения
       operationId: createOffer
       description: Создаёт новое предложение по аренде.
-      security: [{}]
+      security: [{bearerAuth: []}]
       requestBody:
         description: Информация для создания нового предложения
         required: true
@@ -83,7 +83,7 @@ paths:
       summary: Премиальные предложения для города
       operationId: getPremiumOffers
       description: Возвращает не больше 3 предложений с флагом «Премиум» для города, отсортированных по дате публикации (по убыванию).
-      security: [{}]
+      security: [{}, bearerAuth: []]
       parameters:
         - name: city
           in: path
@@ -112,7 +112,7 @@ paths:
       summary: Детальная информация о предложении
       operationId: getOffer
       description: Возвращает все поля предложения и сведения о количестве комментариев.
-      security: [{}]
+      security: [{}, bearerAuth: []]
       responses:
         '200':
           description: Объект предложения
@@ -130,7 +130,7 @@ paths:
       summary: Редактирование предложения
       operationId: updateOffer
       description: Обновляет предложение.
-      security: [{}]
+      security: [{bearerAuth: []}]
       requestBody:
         description: Обновлённая информация о предложении. Передаются только изменяемые поля
         required: true
@@ -155,7 +155,7 @@ paths:
       summary: Удаление предложения
       operationId: deleteOffer
       description: Удаляет предложение вместе с его комментариями.
-      security: [{}]
+      security: [{bearerAuth: []}]
       responses:
         '204':
           description: Предложение удалено
@@ -172,7 +172,7 @@ paths:
       summary: Список комментариев предложения
       operationId: getOfferComments
       description: Возвращает не больше 50 последних комментариев, отсортированных по дате публикации (по убыванию).
-      security: [{}]
+      security: [{}, bearerAuth: []]
       responses:
         '200':
           description: Список комментариев
@@ -193,7 +193,7 @@ paths:
       summary: Добавление комментария
       operationId: createComment
       description: Добавляет новый комментарий к предложению.
-      security: [{}]
+      security: [{bearerAuth: []}]
       requestBody:
         description: Информация для создания комментария
         required: true
@@ -221,7 +221,7 @@ paths:
       summary: Список избранных предложений
       operationId: getFavorites
       description: Возвращает все предложения, добавленные пользователем в избранное.
-      security: [{}]
+      security: [{bearerAuth: []}]
       responses:
         '200':
           description: Список избранных предложений
@@ -245,7 +245,7 @@ paths:
       summary: Добавление предложения в избранное
       operationId: addFavorite
       description: Добавляет предложение в список избранных.
-      security: [{}]
+      security: [{bearerAuth: []}]
       responses:
         '200':
           description: Предложение добавлено. Объект предложения
@@ -263,7 +263,7 @@ paths:
       summary: Удаление предложения из избранного
       operationId: removeFavorite
       description: Удаляет предложение из списка избранных.
-      security: [{}]
+      security: [{bearerAuth: []}]
       responses:
         '200':
           description: Предложение удалено. Объект предложения
