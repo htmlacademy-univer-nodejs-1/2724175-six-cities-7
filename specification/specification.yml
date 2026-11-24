@@ -56,7 +56,7 @@ paths:
       tags: [offers]
       summary: Создание предложения
       operationId: createOffer
-      description: Создаёт новое предложение по аренде.
+      description: Создаёт новое предложение по аренде. Доступно только авторизованным клиентам.
       security: [{bearerAuth: []}]
       requestBody:
         description: Информация для создания нового предложения
@@ -74,6 +74,8 @@ paths:
                 $ref: '#/components/schemas/Offer'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -129,7 +131,7 @@ paths:
       tags: [offers]
       summary: Редактирование предложения
       operationId: updateOffer
-      description: Обновляет предложение.
+      description: Обновляет предложение. Клиент может редактировать только свои предложения.
       security: [{bearerAuth: []}]
       requestBody:
         description: Обновлённая информация о предложении. Передаются только изменяемые поля
@@ -147,6 +149,10 @@ paths:
                 $ref: '#/components/schemas/Offer'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -154,13 +160,17 @@ paths:
       tags: [offers]
       summary: Удаление предложения
       operationId: deleteOffer
-      description: Удаляет предложение вместе с его комментариями.
+      description: Удаляет предложение вместе с его комментариями. Клиент может удалять только свои предложения.
       security: [{bearerAuth: []}]
       responses:
         '204':
           description: Предложение удалено
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -192,7 +202,7 @@ paths:
       tags: [comments]
       summary: Добавление комментария
       operationId: createComment
-      description: Добавляет новый комментарий к предложению.
+      description: Добавляет новый комментарий к предложению. Доступно только авторизованным клиентам.
       security: [{bearerAuth: []}]
       requestBody:
         description: Информация для создания комментария
@@ -210,6 +220,8 @@ paths:
                 $ref: '#/components/schemas/Comment'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -233,6 +245,8 @@ paths:
                   $ref: '#/components/schemas/OfferPreview'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -244,7 +258,7 @@ paths:
       tags: [favorites]
       summary: Добавление предложения в избранное
       operationId: addFavorite
-      description: Добавляет предложение в список избранных.
+      description: Добавляет предложение в список избранных. Доступно только авторизованным клиентам.
       security: [{bearerAuth: []}]
       responses:
         '200':
@@ -255,6 +269,8 @@ paths:
                 $ref: '#/components/schemas/Offer'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -262,7 +278,7 @@ paths:
       tags: [favorites]
       summary: Удаление предложения из избранного
       operationId: removeFavorite
-      description: Удаляет предложение из списка избранных.
+      description: Удаляет предложение из списка избранных. Доступно только авторизованным клиентам.
       security: [{bearerAuth: []}]
       responses:
         '200':
@@ -273,6 +289,8 @@ paths:
                 $ref: '#/components/schemas/Offer'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -281,7 +299,7 @@ paths:
       tags: [users]
       summary: Регистрация пользователя
       operationId: registerUser
-      description: Создаёт нового пользователя.
+      description: Создаёт нового пользователя. Доступно только анонимным клиентам.
       security: [{}]
       requestBody:
         description: Информация для создания нового пользователя
@@ -299,6 +317,12 @@ paths:
                 $ref: '#/components/schemas/User'
         '400':
           $ref: '#/components/responses/ValidationError'
+        '403':
+          description: Регистрация недоступна авторизованному клиенту
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '409':
           description: Пользователь с таким email уже существует
           content:
