@@ -1,9 +1,7 @@
 openapi: 3.0.3
 info:
   title: API сервера «Шесть городов»
-  description: |-
-    REST API сервиса «Шесть городов». На этом этапе авторизация и проверка прав
-    не выполняются. Вход, проверка токена и загрузка файлов пока не реализованы.
+  description: Список ресурсов и маршрутов REST API сервиса «Шесть городов».
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT

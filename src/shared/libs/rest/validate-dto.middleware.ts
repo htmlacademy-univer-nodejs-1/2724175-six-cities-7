@@ -6,7 +6,6 @@ import { HttpError } from './exception-filter.js';
 import { Middleware } from './middleware.interface.js';
 
 function hasReservedKeys(input: object): boolean {
-  // class-transformer can inspect an input's constructor and silently skip prototype keys.
   const pending = [input];
   while (pending.length > 0) {
     const value = pending.pop() as object;
