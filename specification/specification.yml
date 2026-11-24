@@ -553,6 +553,15 @@ components:
           maximum: 180
           example: 4.895168
 
+    OfferInputLocation:
+      allOf:
+        - $ref: '#/components/schemas/Location'
+        - type: object
+          additionalProperties: false
+          properties:
+            latitude: {}
+            longitude: {}
+
     User:
       type: object
       description: Пользователь без конфиденциальных данных
@@ -661,10 +670,12 @@ components:
           example: false
         rating:
           type: number
-          minimum: 1
-          maximum: 5
-          multipleOf: 0.1
-          description: Рейтинг с точностью до одного знака после запятой
+          oneOf:
+            - enum: [0]
+            - minimum: 1
+              maximum: 5
+              multipleOf: 0.1
+          description: 0, если оценок ещё нет; иначе от 1 до 5 с точностью до одного знака после запятой
           example: 4.2
         commentCount:
           type: integer
@@ -738,6 +749,7 @@ components:
         previewImage:
           type: string
           format: uri
+          pattern: '^[Hh][Tt][Tt][Pp][Ss]?://'
           example: https://14.design.htmlacademy.pro/dusseldorf/preview.jpg
         images:
           type: array
@@ -746,6 +758,7 @@ components:
           items:
             type: string
             format: uri
+            pattern: '^[Hh][Tt][Tt][Pp][Ss]?://'
         isPremium:
           type: boolean
           example: false
@@ -773,7 +786,7 @@ components:
           items:
             $ref: '#/components/schemas/Amenity'
         location:
-          $ref: '#/components/schemas/Location'
+          $ref: '#/components/schemas/OfferInputLocation'
 
     UpdateOffer:
       type: object
@@ -794,6 +807,7 @@ components:
         previewImage:
           type: string
           format: uri
+          pattern: '^[Hh][Tt][Tt][Pp][Ss]?://'
         images:
           type: array
           minItems: 6
@@ -801,6 +815,7 @@ components:
           items:
             type: string
             format: uri
+            pattern: '^[Hh][Tt][Tt][Pp][Ss]?://'
         isPremium:
           type: boolean
         housingType:
@@ -824,7 +839,7 @@ components:
           items:
             $ref: '#/components/schemas/Amenity'
         location:
-          $ref: '#/components/schemas/Location'
+          $ref: '#/components/schemas/OfferInputLocation'
 
     Comment:
       type: object

@@ -1,7 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMinSize, ArrayUnique, ArrayMaxSize, IsArray, IsBoolean, IsDefined, IsEnum, IsIn, IsInt,
-  IsMongoId, IsNumber, IsObject, IsUrl, Length, Max, Min, ValidateIf, ValidateNested
+  IsMongoId, IsNumber, IsObject, IsUrl, Length, Matches, Max, Min, ValidateIf, ValidateNested
 } from 'class-validator';
 import { OFFER_LIMITS } from '../../shared/constants/offer-limits.js';
 import { Amenity, CITY_LOCATIONS, CityName, HousingType } from '../../shared/types/index.js';
@@ -34,12 +34,14 @@ export class UpdateOfferBody {
   public city!: CityName;
 
   @IsUrl(urlOptions)
+  @Matches(/^https?:\/\//i)
   public previewImage!: string;
 
   @IsArray()
   @ArrayMinSize(OFFER_LIMITS.imagesCount)
   @ArrayMaxSize(OFFER_LIMITS.imagesCount)
   @IsUrl(urlOptions, { each: true })
+  @Matches(/^https?:\/\//i, { each: true })
   public images!: string[];
 
   @IsBoolean()

@@ -4,6 +4,7 @@ import { once } from 'node:events';
 import test from 'node:test';
 import { Component } from '../dist/shared/di/component.js';
 import { createContainer } from '../dist/shared/di/container.js';
+import { OfferNotFoundError } from '../dist/shared/modules/offer/offer-not-found.error.js';
 import { CITY_LOCATIONS } from '../dist/shared/types/index.js';
 
 const id = '6329c3d6a04ab1061c6425ea';
@@ -83,7 +84,7 @@ test('регистрация возвращает 201 без пароля, а п
 });
 
 test('фильтр разделяет некорректный запрос, отсутствующий маршрут и сбой сервера', async (t) => {
-  const { request, logs } = await start(t, { offers: { find: async () => { throw new Error('Внутренняя деталь'); } } });
+  const { request, logs } = await start(t, { offers: { find: async () => { throw new URIError('Внутренняя деталь'); } } });
   assert.equal((await request('/users/register', json('{'))).status, 400);
   assert.equal((await request('/offers/not-an-id')).status, 400);
   assert.equal((await request('/missing')).status, 404);
@@ -91,6 +92,16 @@ test('фильтр разделяет некорректный запрос, о�
   assert.equal(failure.status, 500);
   assert.deepEqual(await failure.json(), { error: 'Внутренняя ошибка сервера.' });
   assert.equal(logs[0][1].message, 'Внутренняя деталь');
+});
+
+test('ошибка декодирования параметра Express возвращает 400 до вызова сервиса', async (t) => {
+  const { request, logs } = await start(t, { offers: {
+    findById: () => assert.fail('Некорректный параметр передан в сервис')
+  } });
+  const response = await request('/offers/%E0%A4%A');
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: 'Некорректное кодирование параметра маршрута.' });
+  assert.deepEqual(logs, []);
 });
 
 test('заглушки возвращают 501 после проверки входных данных', async (t) => {
@@ -105,12 +116,17 @@ test('заглушки возвращают 501 после проверки вх
 
 test('анонимный клиент создаёт предложение с указанным автором', async (t) => {
   let input;
-  const { request } = await start(t, { offers: { create: async (dto) => { input = dto; return offer; } } });
+  const createdOffer = { ...offer, toObject: () => ({ ...fields, rating: 0, commentCount: 0 }) };
+  const { request } = await start(t, { offers: {
+    create: async (dto) => { input = dto; return createdOffer; }, findById: async () => createdOffer
+  } });
   const response = await request('/offers', json(JSON.stringify(offerBody)));
   assert.equal(response.status, 201);
   assert.equal(String(input.author), id);
   assert.deepEqual(input.city, { name: 'Paris', location });
-  assert.equal((await response.json()).author.id, id);
+  const result = await response.json();
+  assert.equal(result.author.id, id);
+  assert.equal(result.rating, 0);
   assert.equal((await request('/offers', json(JSON.stringify({ ...offerBody, authorId: missingId })))).status, 404);
 });
 
@@ -210,5 +226,55 @@ test('валидация DTO не передаёт невалидное тело
   for (const body of [{ ...registerBody, email: 'bad' }, { ...registerBody, password: 'short' },
     { ...registerBody, avatarPath: 'https://example.com/avatar.gif' }]) {
     assert.equal((await request('/users/register', json(JSON.stringify(body)))).status, 400);
+  }
+});
+
+
+test('вложенные объекты проверяются до преобразования DTO и не доходят до сервисов', async (t) => {
+  const unexpected = () => assert.fail('Невалидный запрос передан в сервис');
+  const { request, logs } = await start(t, { offers: { create: unexpected, updateById: unexpected },
+    users: { findById: unexpected } });
+  const invalidLocations = [
+    { ...location, latitude: { constructor: 'не конструктор', value: 1 } },
+    { ...location, constructor: null },
+    { ...location, toString: 'лишнее поле' },
+    { ...location, extra: 1 },
+    { ...location, ['__proto__']: {} }
+  ];
+  for (const location of invalidLocations) {
+    assert.equal((await request('/offers', json(JSON.stringify({ ...offerBody, location })))).status, 400);
+    assert.equal((await request(`/offers/${id}`, { ...json(JSON.stringify({ location })), method: 'PATCH' })).status, 400);
+  }
+  assert.deepEqual(logs, []);
+});
+
+test('ссылки на изображения в запросах требуют префикс http:// или https://', async (t) => {
+  const unexpected = () => assert.fail('Невалидный запрос передан в сервис');
+  const { request } = await start(t, { offers: { create: unexpected, updateById: unexpected },
+    users: { findById: unexpected } });
+  for (const url of ['http:example.com/photo.jpg', 'ftp://example.com/photo.jpg']) {
+    for (const patch of [{ previewImage: url }, { images: [url, ...offerBody.images.slice(1)] }]) {
+      assert.equal((await request('/offers', json(JSON.stringify({ ...offerBody, ...patch })))).status, 400);
+      assert.equal((await request(`/offers/${id}`, { ...json(JSON.stringify(patch)), method: 'PATCH' })).status, 400);
+    }
+  }
+});
+
+test('исчезновение предложения при записи даёт 404, неожиданный сбой даёт 500', async (t) => {
+  let error = new OfferNotFoundError();
+  const fail = async () => { throw error; };
+  const { request } = await start(t, { comments: { create: fail }, users: { addToFavorites: fail } });
+  const addComment = () => request(`/offers/${id}/comments`, json(JSON.stringify(commentBody)));
+  const addFavorite = () => request(`/favorites/${id}?userId=${id}`, { method: 'POST' });
+  for (const send of [addComment, addFavorite]) {
+    const response = await send();
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { error: 'Предложение не найдено.' });
+  }
+  error = new Error('Предложение не найдено.');
+  for (const send of [addComment, addFavorite]) {
+    const response = await send();
+    assert.equal(response.status, 500);
+    assert.deepEqual(await response.json(), { error: 'Внутренняя ошибка сервера.' });
   }
 });

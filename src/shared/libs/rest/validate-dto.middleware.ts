@@ -5,6 +5,23 @@ import { StatusCodes } from 'http-status-codes';
 import { HttpError } from './exception-filter.js';
 import { Middleware } from './middleware.interface.js';
 
+function hasReservedKeys(input: object): boolean {
+  // class-transformer can inspect an input's constructor and silently skip prototype keys.
+  const pending = [input];
+  while (pending.length > 0) {
+    const value = pending.pop() as object;
+    for (const [key, child] of Object.entries(value)) {
+      if (Object.prototype.hasOwnProperty.call(Object.prototype, key)) {
+        return true;
+      }
+      if (child !== null && typeof child === 'object') {
+        pending.push(child);
+      }
+    }
+  }
+  return false;
+}
+
 export class ValidateDtoMiddleware implements Middleware {
   constructor(
     private readonly dto: ClassConstructor<object>,
@@ -17,6 +34,9 @@ export class ValidateDtoMiddleware implements Middleware {
     if (!input || typeof input !== 'object' || Array.isArray(input) ||
       (this.partial && Object.keys(input).length === 0)) {
       throw new HttpError(StatusCodes.BAD_REQUEST, 'Ожидается объект с данными запроса.');
+    }
+    if (hasReservedKeys(input)) {
+      throw new HttpError(StatusCodes.BAD_REQUEST, 'Данные запроса не прошли проверку.');
     }
     const dto = plainToInstance(this.dto, input);
     const errors = await validate(dto, {

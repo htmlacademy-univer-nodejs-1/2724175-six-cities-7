@@ -1,5 +1,6 @@
 import { ErrorRequestHandler } from 'express';
 import { StatusCodes } from 'http-status-codes';
+import { OfferNotFoundError } from '../../modules/offer/offer-not-found.error.js';
 import { Logger } from '../logger/logger.interface.js';
 
 export class HttpError extends Error {
@@ -16,6 +17,14 @@ export class ExceptionFilter {
     let message = 'Внутренняя ошибка сервера.';
     if (error instanceof HttpError) {
       ({ status, message } = error);
+    } else if (error instanceof OfferNotFoundError) {
+      status = StatusCodes.NOT_FOUND;
+      message = error.message;
+    } else if (error instanceof URIError && error.message.startsWith('Failed to decode param ') &&
+      'status' in error && error.status === StatusCodes.BAD_REQUEST &&
+      'statusCode' in error && error.statusCode === StatusCodes.BAD_REQUEST) {
+      status = StatusCodes.BAD_REQUEST;
+      message = 'Некорректное кодирование параметра маршрута.';
     } else if (error instanceof Error && 'type' in error) {
       if (error.type === 'entity.parse.failed') {
         status = StatusCodes.BAD_REQUEST;
